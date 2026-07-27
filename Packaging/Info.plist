@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>zh_CN</string>
+    <key>CFBundleExecutable</key>
+    <string>KiteShell</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.kiteshell.app</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>KiteShell</string>
+    <key>CFBundleDisplayName</key>
+    <string>KiteShell</string>
+    <key>CFBundleIconFile</key>
+	<string>KiteShell-0.5.3.icns</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+	<string>0.5.3</string>
+    <key>KiteShellReleaseLabel</key>
+    <string>0.5.3-alpha</string>
+    <key>CFBundleVersion</key>
+	<string>21</string>
+    <key>KiteShellSigningType</key>
+    <string>本机开发签名（非正式分发）</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>KiteShell 需要访问本地网络，以连接局域网内的 SSH 服务器并使用远程终端、文件传输和系统监控功能。</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+if [ -z "${KITESHELL_ASKPASS_SOCKET:-}" ]; then
+    exit 1
+fi
+
+exec /usr/bin/nc -U "$KITESHELL_ASKPASS_SOCKET"
