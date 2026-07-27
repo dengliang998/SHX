@@ -8,7 +8,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "KiteShell", targets: ["RemoteHub"])
+        .executable(name: "KiteShell", targets: ["RemoteHub"]),
+        .executable(name: "KiteShellUpdater", targets: ["KiteShellUpdater"])
     ],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.15.0"),
@@ -21,6 +22,10 @@ let package = Package(
                 .product(name: "SwiftTerm", package: "SwiftTerm")
             ],
             path: "Sources/RemoteHub"
+        ),
+        .executableTarget(
+            name: "KiteShellUpdater",
+            path: "Sources/KiteShellUpdater"
         ),
         .testTarget(
             name: "RemoteHubTests",

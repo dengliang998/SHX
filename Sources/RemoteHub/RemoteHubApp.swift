@@ -64,6 +64,13 @@ struct KiteShellApp: App {
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             }
 
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    model.checkForUpdates()
+                }
+                .disabled(model.softwareUpdateState.isBusy)
+            }
+
             CommandMenu("会话") {
                 Button("重新连接") {
                     model.reconnectSelectedSession()

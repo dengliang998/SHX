@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftTerm
 import Testing
@@ -174,6 +175,54 @@ struct ModelsTests {
         let encoded = "eU15IxpjG1olIXZEeBsWK3AyLhO4+e3E8nqkLx+Sp77fvvwY0vmkcQ=="
         #expect(FinalShellPasswordDecoder.decode(encoded) == "KiteShell-FinalShell-Test-2026!")
         #expect(FinalShellPasswordDecoder.decode("not-base64") == nil)
+    }
+
+    @Test
+    func semanticVersionsUseNumericOrdering() {
+        #expect(SemanticVersion("1.0.1")! > SemanticVersion("1.0.0")!)
+        #expect(SemanticVersion("v2.0.0")! > SemanticVersion("1.99.99")!)
+        #expect(SemanticVersion("1.0.0-beta") == SemanticVersion("1.0.0"))
+        #expect(SemanticVersion("14.0") == SemanticVersion("14.0.0"))
+        #expect(SemanticVersion("invalid") == nil)
+    }
+
+    @Test
+    func updateManifestRequiresMatchingEd25519Signature() throws {
+        let privateKey = try Curve25519.Signing.PrivateKey(
+            rawRepresentation: Data((0..<32).map(UInt8.init))
+        )
+        let unsigned = UpdateManifest(
+            product: "KiteShell",
+            version: "1.0.1",
+            build: 101,
+            assetName: "KiteShell-1.0.1.dmg",
+            sha256: String(repeating: "a", count: 64),
+            minimumSystemVersion: "14.0",
+            signature: ""
+        )
+        let signature = try privateKey.signature(for: unsigned.signingPayload).base64EncodedString()
+        let signed = UpdateManifest(
+            product: unsigned.product,
+            version: unsigned.version,
+            build: unsigned.build,
+            assetName: unsigned.assetName,
+            sha256: unsigned.sha256,
+            minimumSystemVersion: unsigned.minimumSystemVersion,
+            signature: signature
+        )
+        let publicKey = privateKey.publicKey.rawRepresentation.base64EncodedString()
+        #expect(signed.verifies(publicKeyBase64: publicKey))
+
+        let tampered = UpdateManifest(
+            product: signed.product,
+            version: "1.0.2",
+            build: signed.build,
+            assetName: signed.assetName,
+            sha256: signed.sha256,
+            minimumSystemVersion: signed.minimumSystemVersion,
+            signature: signed.signature
+        )
+        #expect(!tampered.verifies(publicKeyBase64: publicKey))
     }
 
     @Test

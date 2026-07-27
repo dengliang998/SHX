@@ -75,12 +75,16 @@ final class AppModel: ObservableObject {
     @Published var directoryFollowEnabled: [UUID: Bool] = [:]
     @Published var globalQuickCommands: [QuickCommand] = CommandStore().loadCommands()
     @Published var commandExecutionHistory: [CommandExecutionRecord] = CommandStore().loadHistory()
+    @Published var softwareUpdateState: SoftwareUpdateState = .idle
 
     private let profileStore = ProfileStore()
     private let groupStore = GroupStore()
     private let commandStore = CommandStore()
     private let credentialVault = LocalCredentialVault()
     private let workspaceStore = WorkspaceStore()
+    private let releaseUpdater = GitHubReleaseUpdater()
+    private var availableSoftwareUpdate: AvailableAppUpdate?
+    private var softwareUpdateTask: Task<Void, Never>?
     private var monitorTasks: [UUID: Task<Void, Never>] = [:]
     private var remoteDirectoryTasks: [UUID: Task<Void, Never>] = [:]
     private var fileTransferTasks: [UUID: Task<Void, Never>] = [:]
@@ -101,6 +105,7 @@ final class AppModel: ObservableObject {
         groups = groupStore.load(profileGroups: loadedServers.map(\.group))
         restoreWorkspaceIfNeeded()
         DiagnosticsCenter.record("app", "应用启动，已加载 \(servers.count) 条连接配置")
+        scheduleAutomaticUpdateCheck()
     }
 
     var selectedSession: Session? {
@@ -120,6 +125,74 @@ final class AppModel: ObservableObject {
     func showWorkspace() {
         guard selectedSession != nil else { return }
         route = .workspace
+    }
+
+    var canInstallSoftwareUpdate: Bool {
+        availableSoftwareUpdate != nil && !softwareUpdateState.isBusy
+    }
+
+    func checkForUpdates(silent: Bool = false) {
+        guard !softwareUpdateState.isBusy else { return }
+        softwareUpdateTask?.cancel()
+        if !silent { softwareUpdateState = .checking }
+        softwareUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await releaseUpdater.check(
+                    currentVersion: AppVersion.short,
+                    currentBuild: Int(AppVersion.build) ?? 0
+                )
+                UserDefaults.standard.set(Date(), forKey: "lastAutomaticUpdateCheck")
+                switch result {
+                case .upToDate:
+                    availableSoftwareUpdate = nil
+                    softwareUpdateState = silent ? .idle : .upToDate
+                case .available(let update):
+                    availableSoftwareUpdate = update
+                    softwareUpdateState = .available(version: update.version)
+                }
+            } catch is CancellationError {
+                if !silent { softwareUpdateState = .idle }
+            } catch {
+                DiagnosticsCenter.record("update", "Update check failed: \(error.localizedDescription)")
+                if !silent { softwareUpdateState = .failed(error.localizedDescription) }
+            }
+            softwareUpdateTask = nil
+        }
+    }
+
+    func installAvailableSoftwareUpdate() {
+        guard let update = availableSoftwareUpdate, !softwareUpdateState.isBusy else { return }
+        softwareUpdateState = .downloading(version: update.version)
+        softwareUpdateTask?.cancel()
+        softwareUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let prepared = try await releaseUpdater.prepareInstallation(update)
+                softwareUpdateState = .preparing
+                try releaseUpdater.launchInstaller(prepared)
+            } catch is CancellationError {
+                softwareUpdateState = .available(version: update.version)
+            } catch {
+                DiagnosticsCenter.record("update", "Update installation failed: \(error.localizedDescription)")
+                softwareUpdateState = .failed(error.localizedDescription)
+            }
+            softwareUpdateTask = nil
+        }
+    }
+
+    func openAvailableSoftwareRelease() {
+        guard let url = availableSoftwareUpdate?.releasePageURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func scheduleAutomaticUpdateCheck() {
+        let lastCheck = UserDefaults.standard.object(forKey: "lastAutomaticUpdateCheck") as? Date
+        guard lastCheck == nil || Date().timeIntervalSince(lastCheck!) >= 86_400 else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            self?.checkForUpdates(silent: true)
+        }
     }
 
     func requestOpenSession(for profile: ServerProfile) {

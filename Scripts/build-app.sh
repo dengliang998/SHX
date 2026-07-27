@@ -15,8 +15,9 @@ for stale_icon in "$APP_DIR/Contents/Resources"/KiteShell*.icns(N); do
     unlink "$stale_icon"
 done
 install -m 755 "$BIN_DIR/KiteShell" "$APP_DIR/Contents/MacOS/KiteShell"
+install -m 755 "$BIN_DIR/KiteShellUpdater" "$APP_DIR/Contents/Resources/KiteShellUpdater"
 install -m 644 "$ROOT_DIR/Packaging/Info.plist" "$APP_DIR/Contents/Info.plist"
-install -m 644 "$ROOT_DIR/Packaging/KiteShell.icns" "$APP_DIR/Contents/Resources/KiteShell-0.5.3.icns"
+install -m 644 "$ROOT_DIR/Packaging/KiteShell.icns" "$APP_DIR/Contents/Resources/KiteShell-1.0.0.icns"
 install -m 755 "$ROOT_DIR/Packaging/KiteShellAskPass" "$APP_DIR/Contents/Resources/KiteShellAskPass"
 install -m 644 "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$APP_DIR/Contents/Resources/THIRD_PARTY_NOTICES.md"
 install -m 644 "$ROOT_DIR/CHANGELOG.md" "$APP_DIR/Contents/Resources/CHANGELOG.md"

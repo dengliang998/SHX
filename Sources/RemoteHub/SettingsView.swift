@@ -101,6 +101,32 @@ struct SettingsView: View {
                 Toggle("后台任务完成或失败时通知", isOn: $taskNotifications)
             }
 
+            Section("Software Update") {
+                HStack(spacing: 10) {
+                    if model.softwareUpdateState.isBusy {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: model.canInstallSoftwareUpdate ? "arrow.down.circle.fill" : "checkmark.circle")
+                            .foregroundStyle(model.canInstallSoftwareUpdate ? .blue : .secondary)
+                    }
+                    Text(model.softwareUpdateState.summary)
+                        .foregroundStyle(model.softwareUpdateState.isBusy ? .primary : .secondary)
+                    Spacer()
+                }
+                HStack {
+                    Button("Check for Updates") { model.checkForUpdates() }
+                        .disabled(model.softwareUpdateState.isBusy)
+                    if model.canInstallSoftwareUpdate {
+                        Button("View Release") { model.openAvailableSoftwareRelease() }
+                        Button("Download and Install") { model.installAvailableSoftwareUpdate() }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                Text("Updates come from GitHub Releases. KiteShell verifies the Ed25519 manifest signature and DMG SHA-256 before replacing the current app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("诊断") {
                 Button("导出脱敏诊断报告…") { exportDiagnostics() }
                 Button("在 Finder 中显示日志") { DiagnosticsCenter.revealLog() }
@@ -127,7 +153,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 720)
+        .frame(width: 580, height: 780)
         .navigationTitle("设置")
         .onChange(of: monitorInterval) {
             model.refreshMonitorPolling()
