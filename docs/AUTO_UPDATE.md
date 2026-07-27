@@ -30,4 +30,3 @@ Automatic checks are throttled to once every 24 hours. Manual checks are always 
 ## Signing key
 
 The private Ed25519 update key is release infrastructure and must never be committed, attached to a Release, printed in CI logs, or copied into the application. Only the public key is embedded in `Info.plist`.
-

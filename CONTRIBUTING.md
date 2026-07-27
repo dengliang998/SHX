@@ -23,4 +23,3 @@ Changes to SSH, SFTP, credentials, updates, or remote editing should also run th
 - Keep user-facing errors actionable and avoid duplicate alerts.
 - Use bounded concurrency and cancellable background tasks.
 - Document security or migration tradeoffs in the pull request.
-

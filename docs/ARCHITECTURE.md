@@ -19,4 +19,3 @@ KiteShell is a native macOS application with no Electron, WebView, Java, Qt, or 
 - File transfers report bounded progress and can be cancelled.
 - Terminal output remains independent from monitor and file refresh work.
 - Repeated connection preflights and repeated trust scans are avoided.
-

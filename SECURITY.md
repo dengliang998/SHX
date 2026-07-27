@@ -17,4 +17,3 @@ Include the affected KiteShell version, macOS version, reproduction steps, expec
 - Host keys use OpenSSH `accept-new`: new keys are recorded automatically, while changed keys are rejected.
 - GitHub Release updates require both a valid Ed25519 manifest signature and a matching SHA-256 before installation.
 - Current community builds are locally signed but not Developer ID signed or Apple-notarized.
-
