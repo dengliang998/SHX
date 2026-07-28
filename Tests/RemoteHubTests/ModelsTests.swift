@@ -1,3 +1,4 @@
+import AppKit
 import CryptoKit
 import Foundation
 import SwiftTerm
@@ -5,6 +6,51 @@ import Testing
 @testable import RemoteHub
 
 struct ModelsTests {
+    @Test
+    func terminalClipboardShortcutsUseStandardMacModifiers() {
+        #expect(TerminalClipboardShortcut.resolve(characters: "c", modifiers: .command) == .copy)
+        #expect(TerminalClipboardShortcut.resolve(characters: "V", modifiers: .command) == .paste)
+        #expect(TerminalClipboardShortcut.resolve(characters: "c", modifiers: [.command, .shift]) == nil)
+        #expect(TerminalClipboardShortcut.resolve(characters: "c", modifiers: .control) == nil)
+    }
+
+    @MainActor
+    @Test
+    func terminalCommandCCopiesTheActiveSelection() throws {
+        let pasteboard = NSPasteboard.general
+        let previousValue = pasteboard.string(forType: .string)
+        defer {
+            pasteboard.clearContents()
+            if let previousValue {
+                pasteboard.setString(previousValue, forType: .string)
+            }
+        }
+
+        let terminal = ObservedLocalProcessTerminalView(
+            frame: NSRect(x: 0, y: 0, width: 640, height: 320)
+        )
+        terminal.feed(text: "KiteShell clipboard regression test")
+        terminal.selectAll(nil)
+        pasteboard.clearContents()
+
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .command,
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "c",
+                charactersIgnoringModifiers: "c",
+                isARepeat: false,
+                keyCode: 8
+            )
+        )
+        #expect(terminal.performKeyEquivalent(with: event))
+        #expect(pasteboard.string(forType: .string)?.contains("KiteShell clipboard regression test") == true)
+    }
+
     @Test
     func quickConnectionParserSupportsHostnameAndIPv6() {
         #expect(QuickConnectionParser.parse("deploy@example.com:2222") == QuickConnectionAddress(username: "deploy", host: "example.com", port: 2222))
@@ -447,7 +493,10 @@ struct ModelsTests {
         }
         watcher.start()
         try Data("after with changes".utf8).write(to: file, options: .atomic)
-        try await Task.sleep(for: .milliseconds(280))
+        let deadline = ContinuousClock.now + .seconds(2)
+        while syncAttempts < 2, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
         watcher.stop()
 
         #expect(RemoteFileSnapshot.read(from: file) != initialSnapshot)

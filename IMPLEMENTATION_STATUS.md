@@ -4,13 +4,13 @@ Document version: 1.0
 
 Updated: 2026-07-27
 
-Release baseline: **KiteShell 1.0.0 (Build 100)**
+Release baseline: **KiteShell 1.0.0 (Build 101)**
 
 KiteShell 1.0.0 connects the complete local product path: connection management, real SSH terminals, live Linux monitoring, remote files, upload and download workflows, external and built-in editing, reusable commands, diagnostics, backups, jump hosts, unauthenticated upstream proxies, port forwarding, transfer tracking, and safe workspace restoration.
 
 ## Verified
 
-- Swift unit and model tests: 30 passing, including semantic version ordering, Ed25519 update-manifest verification, FinalShell password compatibility, and local AES-GCM vault behavior.
+- Swift unit and model tests: 32 passing, including terminal clipboard integration, semantic version ordering, Ed25519 update-manifest verification, FinalShell password compatibility, and local AES-GCM vault behavior.
 - Core self-tests: 6/6 passing.
 - Isolated password SSH: system OpenSSH, AskPass, and PTY path passing against a temporary local server.
 - Isolated SFTP editing: ControlMaster download, local modification, replacement upload, and content verification passing.

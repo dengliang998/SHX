@@ -4,6 +4,7 @@ All notable KiteShell changes are documented here. The first public release rese
 
 ## 1.0.0 — 2026-07-27
 
+- Build 101 restores reliable terminal `Command-C` / `Command-V` handling and adds Copy, Paste, and Select All to the terminal context menu.
 - Establish the first public release baseline for native Apple Silicon Macs running macOS 14 or later.
 - Add signed GitHub Releases updates with automatic checking, streamed downloads, Ed25519 manifest verification, SHA-256 validation, strict app-signature verification, rollback, and relaunch.
 - Deliver real SSH terminals, multi-session workspaces, server monitoring, remote files, transfers, scripts, diagnostics, port forwarding, jump hosts, proxies, and safe workspace restoration.

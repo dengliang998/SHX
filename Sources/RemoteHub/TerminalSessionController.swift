@@ -19,6 +19,24 @@ enum TerminalWorkingDirectoryParser {
     }
 }
 
+enum TerminalClipboardShortcut: Equatable {
+    case copy
+    case paste
+
+    static func resolve(
+        characters: String?,
+        modifiers: NSEvent.ModifierFlags
+    ) -> TerminalClipboardShortcut? {
+        let relevantModifiers = modifiers.intersection([.command, .option, .control, .shift])
+        guard relevantModifiers == .command else { return nil }
+        switch characters?.lowercased() {
+        case "c": return .copy
+        case "v": return .paste
+        default: return nil
+        }
+    }
+}
+
 final class ObservedLocalProcessTerminalView: LocalProcessTerminalView {
     var onTermination: (@MainActor @Sendable (Int32?) -> Void)?
 
@@ -28,6 +46,49 @@ final class ObservedLocalProcessTerminalView: LocalProcessTerminalView {
         Task { @MainActor in
             callback?(exitCode)
         }
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard let shortcut = TerminalClipboardShortcut.resolve(
+            characters: event.charactersIgnoringModifiers,
+            modifiers: event.modifierFlags
+        ) else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        switch shortcut {
+        case .copy:
+            let item = NSMenuItem()
+            item.action = #selector(copy(_:))
+            guard validateUserInterfaceItem(item) else {
+                NSSound.beep()
+                return true
+            }
+            copy(self)
+        case .paste:
+            paste(self)
+        }
+        return true
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        let copyItem = NSMenuItem(title: "复制", action: #selector(copy(_:)), keyEquivalent: "")
+        copyItem.target = self
+        copyItem.isEnabled = validateUserInterfaceItem(copyItem)
+        menu.addItem(copyItem)
+
+        let pasteItem = NSMenuItem(title: "粘贴", action: #selector(paste(_:)), keyEquivalent: "")
+        pasteItem.target = self
+        pasteItem.isEnabled = validateUserInterfaceItem(pasteItem)
+        menu.addItem(pasteItem)
+
+        menu.addItem(.separator())
+        let selectAllItem = NSMenuItem(title: "全选", action: #selector(selectAll(_:)), keyEquivalent: "")
+        selectAllItem.target = self
+        selectAllItem.isEnabled = validateUserInterfaceItem(selectAllItem)
+        menu.addItem(selectAllItem)
+        return menu
     }
 
     override func paste(_ sender: Any) {

@@ -23,7 +23,7 @@
     <key>KiteShellReleaseLabel</key>
     <string>1.0.0</string>
     <key>CFBundleVersion</key>
-	<string>100</string>
+    <string>101</string>
     <key>KiteShellSigningType</key>
     <string>Local development signature (not notarized)</string>
     <key>KiteShellUpdatePublicKey</key>
