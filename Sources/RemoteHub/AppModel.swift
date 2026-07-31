@@ -131,6 +131,10 @@ final class AppModel: ObservableObject {
         availableSoftwareUpdate != nil && !softwareUpdateState.isBusy
     }
 
+    var availableConnectionTags: [String] {
+        ConnectionOrganization.availableTags(from: servers)
+    }
+
     func checkForUpdates(silent: Bool = false) {
         guard !softwareUpdateState.isBusy else { return }
         softwareUpdateTask?.cancel()
@@ -324,9 +328,10 @@ final class AppModel: ObservableObject {
         rememberPassword: Bool = true
     ) {
         var profile = profile
+        profile.group = groups.contains(profile.group) ? profile.group : ConnectionOrganization.defaultGroup
+        profile.tags = ConnectionOrganization.normalizeTags(profile.tags)
         profile.updatedAt = Date()
         servers.append(profile)
-        ensureGroupExists(profile.group)
         profileStore.save(servers)
         updatePassword(password, for: profile, remember: rememberPassword)
         isPresentingNewConnection = false
@@ -340,10 +345,11 @@ final class AppModel: ObservableObject {
         guard let index = servers.firstIndex(where: { $0.id == profile.id }) else { return }
         let previous = servers[index]
         var profile = profile
+        profile.group = groups.contains(profile.group) ? profile.group : ConnectionOrganization.defaultGroup
+        profile.tags = ConnectionOrganization.normalizeTags(profile.tags)
         profile.createdAt = previous.createdAt
         profile.updatedAt = Date()
         servers[index] = profile
-        ensureGroupExists(profile.group)
         profileStore.save(servers)
         updatePassword(password, for: profile, remember: rememberPassword)
         for sessionIndex in sessions.indices where sessions[sessionIndex].profile.id == profile.id {
@@ -383,6 +389,21 @@ final class AppModel: ObservableObject {
         profileStore.save(servers)
         try? credentialVault.removePassword(profileID: profile.id)
         try? credentialVault.removePrivateKeyPassphrase(profileID: profile.id)
+        persistWorkspace()
+    }
+
+    func deleteServers(withIDs profileIDs: Set<UUID>) {
+        guard !profileIDs.isEmpty else { return }
+        let relatedSessions = sessions.filter { profileIDs.contains($0.profile.id) }
+        for session in relatedSessions {
+            closeSession(session)
+        }
+        servers.removeAll { profileIDs.contains($0.id) }
+        profileStore.save(servers)
+        for profileID in profileIDs {
+            try? credentialVault.removePassword(profileID: profileID)
+            try? credentialVault.removePrivateKeyPassphrase(profileID: profileID)
+        }
         persistWorkspace()
     }
 
@@ -485,6 +506,74 @@ final class AppModel: ObservableObject {
         servers[index].updatedAt = Date()
         profileStore.save(servers)
         refreshSessionProfiles(profileID: profileID)
+    }
+
+    func moveServers(_ profileIDs: Set<UUID>, toGroup group: String) {
+        guard !profileIDs.isEmpty, groups.contains(group) else { return }
+        let now = Date()
+        var changedIDs: [UUID] = []
+        for index in servers.indices where profileIDs.contains(servers[index].id) && servers[index].group != group {
+            servers[index].group = group
+            servers[index].updatedAt = now
+            changedIDs.append(servers[index].id)
+        }
+        guard !changedIDs.isEmpty else { return }
+        profileStore.save(servers)
+        changedIDs.forEach { refreshSessionProfiles(profileID: $0) }
+    }
+
+    func addTag(_ rawTag: String, toServers profileIDs: Set<UUID>) {
+        let tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !tag.isEmpty, !profileIDs.isEmpty else { return }
+        mutateServers(profileIDs) { profile in
+            guard !profile.tags.contains(tag) else { return false }
+            profile.tags = ConnectionOrganization.normalizeTags(profile.tags + [tag])
+            return true
+        }
+    }
+
+    func removeTag(_ tag: String, fromServers profileIDs: Set<UUID>) {
+        guard !profileIDs.isEmpty else { return }
+        mutateServers(profileIDs) { profile in
+            let originalCount = profile.tags.count
+            profile.tags.removeAll { $0 == tag }
+            return profile.tags.count != originalCount
+        }
+    }
+
+    func clearTags(fromServers profileIDs: Set<UUID>) {
+        guard !profileIDs.isEmpty else { return }
+        mutateServers(profileIDs) { profile in
+            guard !profile.tags.isEmpty else { return false }
+            profile.tags = []
+            return true
+        }
+    }
+
+    func setFavorite(_ favorite: Bool, forServers profileIDs: Set<UUID>) {
+        guard !profileIDs.isEmpty else { return }
+        mutateServers(profileIDs) { profile in
+            guard profile.isFavorite != favorite else { return false }
+            profile.isFavorite = favorite
+            return true
+        }
+    }
+
+    private func mutateServers(
+        _ profileIDs: Set<UUID>,
+        mutation: (inout ServerProfile) -> Bool
+    ) {
+        let now = Date()
+        var changedIDs: [UUID] = []
+        for index in servers.indices where profileIDs.contains(servers[index].id) {
+            if mutation(&servers[index]) {
+                servers[index].updatedAt = now
+                changedIDs.append(servers[index].id)
+            }
+        }
+        guard !changedIDs.isEmpty else { return }
+        profileStore.save(servers)
+        changedIDs.forEach { refreshSessionProfiles(profileID: $0) }
     }
 
     private func ensureGroupExists(_ group: String) {

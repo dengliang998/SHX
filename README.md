@@ -24,7 +24,8 @@ KiteShell combines SSH terminals, remote files, live Linux monitoring, transfers
 
 - **Native macOS experience** — SwiftUI, AppKit, Retina rendering, system menus, keyboard shortcuts, drag and drop, notifications, light/dark appearance, and Apple Silicon binaries.
 - **Real SSH terminal** — PTY-backed sessions, UTF-8, ANSI/256-color/true-color output, multiple tabs, search, reconnect policies, and configurable terminal themes.
-- **Connection workspace** — favorites, recent connections, persistent groups, search, sorting, quick connect, OpenSSH config import, jump hosts, proxies, and port forwarding.
+- **Connection workspace** — favorites, recent connections, sidebar-managed groups, LAN/WAN and custom tags, batch group/tag/favorite/delete actions, search, sorting, quick connect, OpenSSH config import, jump hosts, proxies, and port forwarding.
+- **Chinese and English UI** — switch the application language directly in Settings without changing the macOS system language.
 - **Remote files** — SFTP browsing, upload/download, folders, drag and drop, rename, move, permissions, deletion, built-in editing, external editor synchronization, and conflict detection.
 - **Live server data** — real CPU, memory, swap, load, disk, network, and process data. KiteShell never fills disconnected views with sample server data.
 - **Commands and scripts** — global and per-server libraries, variables, execution modes, risk confirmation, and recent execution metadata.
@@ -105,4 +106,4 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or sharing diag
 
 ## Project status
 
-Version 1.0.0 establishes the first public release baseline. Core SSH, terminal, monitoring, file, transfer, scripting, diagnostics, import, and workspace recovery flows are implemented and covered by automated and isolated integration tests. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.
+Version 1.1.0 improves connection organization with constrained group selection, batch operations, built-in LAN/WAN tags, and an in-app Chinese/English switch. The updater check path now has signed-release fixture coverage and reports inaccessible/private GitHub release sources clearly. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.

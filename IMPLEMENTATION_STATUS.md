@@ -1,16 +1,16 @@
 # KiteShell implementation and release status
 
-Document version: 1.0
+Document version: 1.1
 
-Updated: 2026-07-27
+Updated: 2026-07-31
 
-Release baseline: **KiteShell 1.0.0 (Build 101)**
+Release baseline: **KiteShell 1.1.0 (Build 110)**
 
-KiteShell 1.0.0 connects the complete local product path: connection management, real SSH terminals, live Linux monitoring, remote files, upload and download workflows, external and built-in editing, reusable commands, diagnostics, backups, jump hosts, unauthenticated upstream proxies, port forwarding, transfer tracking, and safe workspace restoration.
+KiteShell 1.1.0 connects the complete local product path and adds sidebar-owned groups, LAN/WAN and custom tags, batch connection actions, and an in-app Chinese/English switch.
 
 ## Verified
 
-- Swift unit and model tests: 32 passing, including terminal clipboard integration, semantic version ordering, Ed25519 update-manifest verification, FinalShell password compatibility, and local AES-GCM vault behavior.
+- Swift unit and model tests: 36 passing, including connection organization, signed/unsigned release-check fixtures, terminal clipboard integration, semantic version ordering, FinalShell password compatibility, and local AES-GCM vault behavior.
 - Core self-tests: 6/6 passing.
 - Isolated password SSH: system OpenSSH, AskPass, and PTY path passing against a temporary local server.
 - Isolated SFTP editing: ControlMaster download, local modification, replacement upload, and content verification passing.
@@ -19,7 +19,7 @@ KiteShell 1.0.0 connects the complete local product path: connection management,
 - Connection startup: the former blocking `ssh-keyscan` and confirmation path has been removed.
 - Credentials: passwords and private-key passphrases use a permission-restricted local AES-GCM vault and no longer invoke Keychain.
 - FinalShell: nested JSON import and compatible `Random + MD5 + DES/ECB/PKCS5Padding` password decoding are implemented natively in Swift/CommonCrypto.
-- Updates: GitHub Releases lookup, signed manifest verification, streamed DMG download, chunked SHA-256, read-only mount, independent replacement helper, strict signature verification, rollback, and relaunch are implemented.
+- Updates: GitHub Releases lookup, signed manifest verification, streamed DMG download, chunked SHA-256, read-only mount, independent replacement helper, strict signature verification, rollback, and relaunch are implemented. Anonymous live checks require a public GitHub release source; private-source 403/404 responses are now explained explicitly.
 
 ## Distribution boundary
 

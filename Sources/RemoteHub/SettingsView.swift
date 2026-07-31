@@ -16,20 +16,33 @@ struct SettingsView: View {
     @AppStorage("terminalOptionAsMeta") private var terminalOptionAsMeta = true
     @AppStorage("confirmRiskyPaste") private var confirmRiskyPaste = true
     @AppStorage("taskNotifications") private var taskNotifications = false
+    @AppStorage("appLanguage") private var appLanguage = AppLanguage.chinese.rawValue
 
     var body: some View {
         Form {
+            Section("语言 / Language") {
+                Picker("应用语言", selection: $appLanguage) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("切换后主窗口与设置会立即使用所选语言。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("外观") {
                 Picker("模式", selection: $appearanceMode) {
                     ForEach(AppearanceMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode.rawValue)
+                        Text(LocalizedStringKey(mode.rawValue)).tag(mode.rawValue)
                     }
                 }
                 .pickerStyle(.segmented)
 
                 Picker("强调色", selection: $accentColorOption) {
                     ForEach(AccentColorOption.allCases) { option in
-                        Text(option.rawValue).tag(option.rawValue)
+                        Text(LocalizedStringKey(option.rawValue)).tag(option.rawValue)
                     }
                 }
 
@@ -55,7 +68,7 @@ struct SettingsView: View {
                                     Circle().stroke(.secondary.opacity(0.4), lineWidth: 0.5)
                                 }
                                 .frame(width: 12, height: 12)
-                            Text(option.rawValue)
+                            Text(LocalizedStringKey(option.rawValue))
                         }
                         .tag(option.rawValue)
                     }
@@ -75,7 +88,7 @@ struct SettingsView: View {
                 LabeledContent("当前行距", value: "\(Int(terminalLineSpacing * 100))%")
                 Picker("光标", selection: $terminalCursorStyle) {
                     ForEach(TerminalCursorStyleOption.allCases) { option in
-                        Text(option.rawValue).tag(option.rawValue)
+                        Text(LocalizedStringKey(option.rawValue)).tag(option.rawValue)
                     }
                 }
                 Picker("滚动历史", selection: $terminalScrollback) {
@@ -101,7 +114,7 @@ struct SettingsView: View {
                 Toggle("后台任务完成或失败时通知", isOn: $taskNotifications)
             }
 
-            Section("Software Update") {
+            Section("软件更新") {
                 HStack(spacing: 10) {
                     if model.softwareUpdateState.isBusy {
                         ProgressView().controlSize(.small)
@@ -109,20 +122,20 @@ struct SettingsView: View {
                         Image(systemName: model.canInstallSoftwareUpdate ? "arrow.down.circle.fill" : "checkmark.circle")
                             .foregroundStyle(model.canInstallSoftwareUpdate ? .blue : .secondary)
                     }
-                    Text(model.softwareUpdateState.summary)
+                    Text(model.softwareUpdateState.localizedSummary)
                         .foregroundStyle(model.softwareUpdateState.isBusy ? .primary : .secondary)
                     Spacer()
                 }
                 HStack {
-                    Button("Check for Updates") { model.checkForUpdates() }
+                    Button("检查更新") { model.checkForUpdates() }
                         .disabled(model.softwareUpdateState.isBusy)
                     if model.canInstallSoftwareUpdate {
-                        Button("View Release") { model.openAvailableSoftwareRelease() }
-                        Button("Download and Install") { model.installAvailableSoftwareUpdate() }
+                        Button("查看发布页面") { model.openAvailableSoftwareRelease() }
+                        Button("下载并安装") { model.installAvailableSoftwareUpdate() }
                             .buttonStyle(.borderedProminent)
                     }
                 }
-                Text("Updates come from GitHub Releases. KiteShell verifies the Ed25519 manifest signature and DMG SHA-256 before replacing the current app.")
+                Text("更新来自 GitHub Releases。替换当前应用前，KiteShell 会校验 Ed25519 清单签名和 DMG SHA-256。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -146,7 +159,13 @@ struct SettingsView: View {
 
             Section("关于") {
                 LabeledContent("KiteShell", value: AppVersion.display)
-                LabeledContent("运行环境", value: "macOS 原生 · Apple Silicon")
+                LabeledContent(
+                    "运行环境",
+                    value: AppLanguage.text(
+                        chinese: "macOS 原生 · Apple Silicon",
+                        english: "Native macOS · Apple Silicon"
+                    )
+                )
                 LabeledContent("签名", value: AppVersion.signingType)
                 Button("查看版本说明") { openBundledDocument("CHANGELOG") }
                 Button("查看开源许可") { openBundledDocument("THIRD_PARTY_NOTICES") }

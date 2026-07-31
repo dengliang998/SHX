@@ -272,6 +272,152 @@ struct ModelsTests {
     }
 
     @Test
+    func connectionOrganizationProvidesBuiltInTagsAndStableNormalization() {
+        let profile = ServerProfile(
+            name: "Fixture",
+            host: "127.0.0.1",
+            username: "tester",
+            tags: [" Production ", "内网", "Production", ""]
+        )
+        #expect(ConnectionOrganization.normalizeTags(profile.tags) == ["内网", "Production"])
+        #expect(ConnectionOrganization.availableTags(from: [profile]) == ["内网", "外网", "Production"])
+    }
+
+    @Test
+    func updaterChecksSignedReleaseFixtureEndToEnd() async throws {
+        let privateKey = Curve25519.Signing.PrivateKey()
+        let manifestURL = URL(string: "https://fixtures.example/KiteShell-update.json")!
+        let downloadURL = URL(string: "https://fixtures.example/KiteShell-1.1.0.dmg")!
+        let latestURL = URL(string: "https://fixtures.example/releases/latest")!
+        let unsigned = UpdateManifest(
+            product: "KiteShell",
+            version: "1.1.0",
+            build: 110,
+            assetName: "KiteShell-1.1.0.dmg",
+            sha256: String(repeating: "a", count: 64),
+            minimumSystemVersion: "14.0",
+            signature: ""
+        )
+        let manifest = UpdateManifest(
+            product: unsigned.product,
+            version: unsigned.version,
+            build: unsigned.build,
+            assetName: unsigned.assetName,
+            sha256: unsigned.sha256,
+            minimumSystemVersion: unsigned.minimumSystemVersion,
+            signature: try privateKey.signature(for: unsigned.signingPayload).base64EncodedString()
+        )
+        let releaseData = try JSONSerialization.data(withJSONObject: [
+            "tag_name": "v1.1.0",
+            "html_url": "https://github.com/jinwang-aibai/KiteShell/releases/tag/v1.1.0",
+            "draft": false,
+            "prerelease": false,
+            "assets": [
+                ["name": "KiteShell-update.json", "browser_download_url": manifestURL.absoluteString],
+                ["name": "KiteShell-1.1.0.dmg", "browser_download_url": downloadURL.absoluteString],
+            ],
+        ])
+        let manifestData = try JSONEncoder().encode(manifest)
+        let fixtures = [latestURL: releaseData, manifestURL: manifestData]
+        let updater = GitHubReleaseUpdater(
+            configuration: GitHubReleaseUpdaterConfiguration(
+                latestReleaseURL: latestURL,
+                publicKeyBase64: privateKey.publicKey.rawRepresentation.base64EncodedString()
+            ),
+            dataLoader: { url in
+                guard let data = fixtures[url] else { throw GitHubReleaseUpdaterError.invalidResponse }
+                return data
+            }
+        )
+
+        let result = try await updater.check(currentVersion: "1.0.0", currentBuild: 101)
+        switch result {
+        case .available(let update):
+            #expect(update.version == "1.1.0")
+            #expect(update.build == 110)
+            #expect(update.downloadURL == downloadURL)
+        case .upToDate:
+            Issue.record("A newer signed release should be available")
+        }
+
+        let upToDate = try await updater.check(currentVersion: "1.1.0", currentBuild: 110)
+        if case .available = upToDate {
+            Issue.record("The installed release should be up to date")
+        }
+    }
+
+    @Test
+    func updaterReportsUnavailableReleaseSourceClearly() async {
+        let updater = GitHubReleaseUpdater(
+            configuration: GitHubReleaseUpdaterConfiguration(
+                latestReleaseURL: URL(string: "https://fixtures.example/releases/latest")!,
+                publicKeyBase64: "fixture"
+            ),
+            dataLoader: { _ in throw GitHubReleaseUpdaterError.releaseSourceUnavailable(404) }
+        )
+        do {
+            _ = try await updater.check(currentVersion: "1.0.0", currentBuild: 100)
+            Issue.record("An unavailable release source must fail")
+        } catch let error as GitHubReleaseUpdaterError {
+            guard case .releaseSourceUnavailable(let status) = error else {
+                Issue.record("Unexpected updater error: \(error)")
+                return
+            }
+            #expect(status == 404)
+            #expect(error.localizedDescription.contains("404"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func updaterRejectsUnsignedManifestFixture() async throws {
+        let latestURL = URL(string: "https://fixtures.example/releases/latest")!
+        let manifestURL = URL(string: "https://fixtures.example/KiteShell-update.json")!
+        let releaseData = try JSONSerialization.data(withJSONObject: [
+            "tag_name": "v1.1.0",
+            "html_url": "https://fixtures.example/releases/v1.1.0",
+            "draft": false,
+            "prerelease": false,
+            "assets": [
+                ["name": "KiteShell-update.json", "browser_download_url": manifestURL.absoluteString],
+                ["name": "KiteShell-1.1.0.dmg", "browser_download_url": "https://fixtures.example/KiteShell-1.1.0.dmg"],
+            ],
+        ])
+        let manifestData = try JSONEncoder().encode(UpdateManifest(
+            product: "KiteShell",
+            version: "1.1.0",
+            build: 110,
+            assetName: "KiteShell-1.1.0.dmg",
+            sha256: String(repeating: "a", count: 64),
+            minimumSystemVersion: "14.0",
+            signature: Data(repeating: 0, count: 64).base64EncodedString()
+        ))
+        let fixtures = [latestURL: releaseData, manifestURL: manifestData]
+        let updater = GitHubReleaseUpdater(
+            configuration: GitHubReleaseUpdaterConfiguration(
+                latestReleaseURL: latestURL,
+                publicKeyBase64: Curve25519.Signing.PrivateKey().publicKey.rawRepresentation.base64EncodedString()
+            ),
+            dataLoader: { url in
+                guard let data = fixtures[url] else { throw GitHubReleaseUpdaterError.invalidResponse }
+                return data
+            }
+        )
+        do {
+            _ = try await updater.check(currentVersion: "1.0.0", currentBuild: 100)
+            Issue.record("An unsigned manifest must never be accepted")
+        } catch let error as GitHubReleaseUpdaterError {
+            guard case .invalidManifest = error else {
+                Issue.record("Unexpected updater error: \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func connectionValidationExplainsInvalidFields() {
         let profile = ServerProfile(
             name: "Invalid",

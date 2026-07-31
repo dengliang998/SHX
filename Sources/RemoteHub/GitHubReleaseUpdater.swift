@@ -77,14 +77,20 @@ enum SoftwareUpdateState: Equatable {
     case preparing
     case failed(String)
 
-    var summary: String {
+    var localizedSummary: String {
         switch self {
-        case .idle: "Updates have not been checked yet"
-        case .checking: "Checking GitHub Releases…"
-        case .upToDate: "KiteShell is up to date"
-        case .available(let version): "KiteShell \(version) is available"
-        case .downloading(let version): "Downloading KiteShell \(version)…"
-        case .preparing: "Verifying and preparing the update…"
+        case .idle:
+            AppLanguage.text(chinese: "尚未检查更新", english: "Updates have not been checked yet")
+        case .checking:
+            AppLanguage.text(chinese: "正在检查 GitHub Releases…", english: "Checking GitHub Releases…")
+        case .upToDate:
+            AppLanguage.text(chinese: "KiteShell 已是最新版本", english: "KiteShell is up to date")
+        case .available(let version):
+            AppLanguage.text(chinese: "KiteShell \(version) 可用", english: "KiteShell \(version) is available")
+        case .downloading(let version):
+            AppLanguage.text(chinese: "正在下载 KiteShell \(version)…", english: "Downloading KiteShell \(version)…")
+        case .preparing:
+            AppLanguage.text(chinese: "正在校验并准备更新…", english: "Verifying and preparing the update…")
         case .failed(let message): message
         }
     }
@@ -99,6 +105,7 @@ enum SoftwareUpdateState: Equatable {
 
 enum GitHubReleaseUpdaterError: LocalizedError {
     case invalidResponse
+    case releaseSourceUnavailable(Int)
     case noRelease
     case missingManifest
     case invalidManifest
@@ -113,6 +120,11 @@ enum GitHubReleaseUpdaterError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse: "GitHub returned an unrecognized response."
+        case .releaseSourceUnavailable(let status):
+            AppLanguage.text(
+                chinese: "无法访问 GitHub 发布源（HTTP \(status)）。请确认仓库或 Releases 为公开状态，并检查网络连接。",
+                english: "The GitHub release source is unavailable (HTTP \(status)). Confirm that the repository or Releases are public and check the network connection."
+            )
         case .noRelease: "No stable KiteShell release is available on GitHub."
         case .missingManifest: "The release does not include an update manifest."
         case .invalidManifest: "The update manifest is invalid or has an invalid signature. Installation was stopped."
@@ -159,24 +171,53 @@ struct PreparedAppUpdate: Sendable {
     let workspaceURL: URL
 }
 
+struct GitHubReleaseUpdaterConfiguration: Sendable {
+    let latestReleaseURL: URL
+    let publicKeyBase64: String
+
+    static var production: GitHubReleaseUpdaterConfiguration {
+        GitHubReleaseUpdaterConfiguration(
+            latestReleaseURL: URL(
+                string: "https://api.github.com/repos/\(GitHubReleaseUpdater.repository)/releases/latest"
+            )!,
+            publicKeyBase64: Bundle.main.object(
+                forInfoDictionaryKey: "KiteShellUpdatePublicKey"
+            ) as? String ?? ""
+        )
+    }
+}
+
 struct GitHubReleaseUpdater: Sendable {
     static let repository = "jinwang-aibai/KiteShell"
     static let manifestAssetName = "KiteShell-update.json"
 
+    typealias DataLoader = @Sendable (URL) async throws -> Data
+
+    private let configuration: GitHubReleaseUpdaterConfiguration
+    private let dataLoader: DataLoader
+
+    init(
+        configuration: GitHubReleaseUpdaterConfiguration = .production,
+        dataLoader: DataLoader? = nil
+    ) {
+        self.configuration = configuration
+        self.dataLoader = dataLoader ?? { url in
+            try await Self.requestData(from: url)
+        }
+    }
+
     func check(currentVersion: String, currentBuild: Int) async throws -> UpdateCheckResult {
-        let releaseURL = URL(string: "https://api.github.com/repos/\(Self.repository)/releases/latest")!
-        let releaseData = try await requestData(from: releaseURL)
+        let releaseData = try await dataLoader(configuration.latestReleaseURL)
         let release = try JSONDecoder().decode(GitHubRelease.self, from: releaseData)
         guard !release.draft, !release.prerelease else { throw GitHubReleaseUpdaterError.noRelease }
         guard let manifestAsset = release.assets.first(where: { $0.name == Self.manifestAssetName }) else {
             throw GitHubReleaseUpdaterError.missingManifest
         }
-        let manifestData = try await requestData(from: manifestAsset.browserDownloadURL)
+        let manifestData = try await dataLoader(manifestAsset.browserDownloadURL)
         let manifest = try JSONDecoder().decode(UpdateManifest.self, from: manifestData)
         guard manifest.product == "KiteShell",
               manifest.version == release.tagName.trimmingPrefix("v"),
-              let publicKey = Bundle.main.object(forInfoDictionaryKey: "KiteShellUpdatePublicKey") as? String,
-              manifest.verifies(publicKeyBase64: publicKey) else {
+              manifest.verifies(publicKeyBase64: configuration.publicKeyBase64) else {
             throw GitHubReleaseUpdaterError.invalidManifest
         }
         let system = ProcessInfo.processInfo.operatingSystemVersion
@@ -286,12 +327,18 @@ struct GitHubReleaseUpdater: Sendable {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    private func requestData(from url: URL) async throws -> Data {
+    private static func requestData(from url: URL) async throws -> Data {
         var request = URLRequest(url: url)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("KiteShell/\(AppVersion.short)", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else {
+            throw GitHubReleaseUpdaterError.invalidResponse
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            if http.statusCode == 403 || http.statusCode == 404 {
+                throw GitHubReleaseUpdaterError.releaseSourceUnavailable(http.statusCode)
+            }
             throw GitHubReleaseUpdaterError.invalidResponse
         }
         return data

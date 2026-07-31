@@ -24,5 +24,6 @@ KiteShell is a native macOS SSH workspace for developers, operators, site owners
 8. Signed, checksum-verified updates from GitHub Releases with rollback.
 9. Responsive behavior under sustained terminal output, monitoring, and transfer workloads.
 10. Clear diagnostics without duplicate error surfaces.
+11. Sidebar-managed groups, LAN/WAN and custom tags, batch connection organization, and in-app Simplified Chinese/English switching.
 
 The complete Chinese product and acceptance specification is maintained in [`PRODUCT_REQUIREMENTS.md`](../PRODUCT_REQUIREMENTS.md).

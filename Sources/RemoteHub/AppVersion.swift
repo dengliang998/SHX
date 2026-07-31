@@ -12,11 +12,14 @@ enum AppVersion {
     }
 
     static var display: String {
-        "版本 \(short)（\(build)）"
+        AppLanguage.text(
+            chinese: "版本 \(short)（\(build)）",
+            english: "Version \(short) (\(build))"
+        )
     }
 
     static var signingType: String {
         Bundle.main.object(forInfoDictionaryKey: "KiteShellSigningType") as? String
-            ?? "开发构建"
+            ?? AppLanguage.text(chinese: "开发构建", english: "Development Build")
     }
 }

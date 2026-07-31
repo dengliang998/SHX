@@ -17,10 +17,14 @@ done
 install -m 755 "$BIN_DIR/KiteShell" "$APP_DIR/Contents/MacOS/KiteShell"
 install -m 755 "$BIN_DIR/KiteShellUpdater" "$APP_DIR/Contents/Resources/KiteShellUpdater"
 install -m 644 "$ROOT_DIR/Packaging/Info.plist" "$APP_DIR/Contents/Info.plist"
-install -m 644 "$ROOT_DIR/Packaging/KiteShell.icns" "$APP_DIR/Contents/Resources/KiteShell-1.0.0.icns"
+install -m 644 "$ROOT_DIR/Packaging/KiteShell.icns" "$APP_DIR/Contents/Resources/KiteShell-1.1.0.icns"
 install -m 755 "$ROOT_DIR/Packaging/KiteShellAskPass" "$APP_DIR/Contents/Resources/KiteShellAskPass"
 install -m 644 "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$APP_DIR/Contents/Resources/THIRD_PARTY_NOTICES.md"
 install -m 644 "$ROOT_DIR/CHANGELOG.md" "$APP_DIR/Contents/Resources/CHANGELOG.md"
+
+for localization in "$ROOT_DIR/Resources"/*.lproj(N); do
+    ditto "$localization" "$APP_DIR/Contents/Resources/${localization:t}"
+done
 
 for resource_bundle in "$BIN_DIR"/*.bundle(N); do
     ditto "$resource_bundle" "$APP_DIR/Contents/Resources/${resource_bundle:t}"

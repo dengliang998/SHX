@@ -21,7 +21,7 @@ struct NewConnectionSheet: View {
     @State private var username: String
     @State private var authentication: AuthenticationMethod
     @State private var group: String
-    @State private var tags: String
+    @State private var selectedTags: Set<String>
     @State private var notes: String
     @State private var identityFilePath: String
     @State private var identityFileBookmark: Data?
@@ -54,7 +54,7 @@ struct NewConnectionSheet: View {
         _username = State(initialValue: profile?.username ?? "")
         _authentication = State(initialValue: profile?.authentication ?? .password)
         _group = State(initialValue: profile?.group ?? "默认分组")
-        _tags = State(initialValue: profile?.tags.joined(separator: ", ") ?? "")
+        _selectedTags = State(initialValue: Set(profile?.tags ?? []))
         _notes = State(initialValue: profile?.notes ?? "")
         _identityFilePath = State(initialValue: profile?.identityFilePath ?? "")
         _identityFileBookmark = State(initialValue: profile?.identityFileBookmark)
@@ -83,7 +83,7 @@ struct NewConnectionSheet: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(existingProfile == nil ? "新建连接" : "编辑连接")
+                    Text(LocalizedStringKey(existingProfile == nil ? "新建连接" : "编辑连接"))
                         .font(.title2.weight(.semibold))
                     Text("密码保存在当前 Mac 的本地加密凭据库，不调用系统钥匙串。")
                         .font(.caption)
@@ -104,10 +104,18 @@ struct NewConnectionSheet: View {
                         .textContentType(.username)
                     Picker("认证方式", selection: $authentication) {
                         ForEach(AuthenticationMethod.allCases) { method in
-                            Text(method.rawValue).tag(method)
+                            Text(LocalizedStringKey(method.rawValue)).tag(method)
                         }
                     }
-                    TextField("分组", text: $group)
+                    Picker("分组", selection: $group) {
+                        ForEach(model.groups, id: \.self) { groupName in
+                            Text(ConnectionOrganization.displayName(forGroup: groupName)).tag(groupName)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("分组只能在连接中心左侧新增和管理。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if authentication == .password {
@@ -134,7 +142,11 @@ struct NewConnectionSheet: View {
                         }
                         Toggle("保存到本地凭据库", isOn: $rememberPassword)
                         LabeledContent("保存状态") {
-                            Text(existingProfile.map(model.hasSavedPassword(for:)) == true ? "已有保存密码；留空则继续使用" : "尚未保存")
+                            Text(LocalizedStringKey(
+                                existingProfile.map(model.hasSavedPassword(for:)) == true
+                                    ? "已有保存密码；留空则继续使用"
+                                    : "尚未保存"
+                            ))
                                 .foregroundStyle(.secondary)
                         }
                         Text("勾选后加密存放在 ~/Library/Application Support/KiteShell/Credentials，仅当前用户可读；不会写入连接配置、导出文件或日志。")
@@ -194,7 +206,10 @@ struct NewConnectionSheet: View {
                 Section {
                     DisclosureGroup("高级设置", isExpanded: $isAdvancedExpanded) {
                         VStack(alignment: .leading, spacing: 12) {
-                            TextField("标签（逗号分隔）", text: $tags)
+                            ConnectionTagSelector(
+                                selectedTags: $selectedTags,
+                                availableTags: model.availableConnectionTags
+                            )
                             TextField("启动目录（例如 /srv/app）", text: $startupDirectory)
                             Toggle("连接成功后运行初始化命令", isOn: $runsInitializationCommand)
                             if runsInitializationCommand {
@@ -207,7 +222,7 @@ struct NewConnectionSheet: View {
                             }
                             Picker("自动重连", selection: $reconnectPolicy) {
                                 ForEach(ReconnectPolicy.allCases) { policy in
-                                    Text(policy.label).tag(policy)
+                                    Text(LocalizedStringKey(policy.label)).tag(policy)
                                 }
                             }
                             Picker("跳板机", selection: $jumpHostID) {
@@ -219,7 +234,7 @@ struct NewConnectionSheet: View {
                             }
                             Picker("上游代理", selection: $upstreamProxy.kind) {
                                 ForEach(UpstreamProxyKind.allCases) { kind in
-                                    Text(kind.rawValue).tag(kind)
+                                    Text(LocalizedStringKey(kind.rawValue)).tag(kind)
                                 }
                             }
                             if upstreamProxy.kind != .none {
@@ -311,6 +326,9 @@ struct NewConnectionSheet: View {
             if authentication == .sshAgent { inspectAgent() }
         }
         .task {
+            if !model.groups.contains(group) {
+                group = ConnectionOrganization.defaultGroup
+            }
             if authentication == .sshAgent { inspectAgent() }
         }
     }
@@ -365,13 +383,8 @@ struct NewConnectionSheet: View {
             port: port,
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
             authentication: authentication,
-            group: group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "默认分组"
-                : group.trimmingCharacters(in: .whitespacesAndNewlines),
-            tags: tags
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty },
+            group: model.groups.contains(group) ? group : ConnectionOrganization.defaultGroup,
+            tags: ConnectionOrganization.normalizeTags(selectedTags),
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             isFavorite: existingProfile?.isFavorite ?? false,
             lastConnectedAt: existingProfile?.lastConnectedAt,

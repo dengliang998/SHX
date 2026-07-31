@@ -21,10 +21,10 @@ private enum ConnectionFilter: Hashable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "所有服务器"
-        case .favorites: "收藏"
-        case .recent: "最近连接"
-        case .group(let name): name
+        case .all: AppLanguage.text(chinese: "所有服务器", english: "All Servers")
+        case .favorites: AppLanguage.text(chinese: "收藏", english: "Favorites")
+        case .recent: AppLanguage.text(chinese: "最近连接", english: "Recent")
+        case .group(let name): ConnectionOrganization.displayName(forGroup: name)
         }
     }
 
@@ -48,10 +48,10 @@ private enum ConnectionSortOrder: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .recent: "最近连接"
-        case .name: "名称"
-        case .created: "创建时间"
-        case .state: "连接状态"
+        case .recent: AppLanguage.text(chinese: "最近连接", english: "Recent")
+        case .name: AppLanguage.text(chinese: "名称", english: "Name")
+        case .created: AppLanguage.text(chinese: "创建时间", english: "Created")
+        case .state: AppLanguage.text(chinese: "连接状态", english: "Connection Status")
         }
     }
 }
@@ -74,6 +74,10 @@ struct ConnectionCenterView: View {
     @State private var deletionCandidate: ServerProfile?
     @State private var groupEditor: GroupEditRequest?
     @State private var groupDeletionCandidate: String?
+    @State private var isSelectionMode = false
+    @State private var selectedProfileIDs: Set<UUID> = []
+    @State private var isConfirmingBatchDeletion = false
+    @State private var isPresentingBatchCustomTag = false
     @State private var isPresentingGettingStarted = false
     @FocusState private var isSearchFocused: Bool
 
@@ -135,6 +139,14 @@ struct ConnectionCenterView: View {
         }
     }
 
+    private var selectedProfiles: [ServerProfile] {
+        model.servers.filter { selectedProfileIDs.contains($0.id) }
+    }
+
+    private var selectedTagUnion: [String] {
+        ConnectionOrganization.normalizeTags(selectedProfiles.flatMap(\.tags))
+    }
+
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
@@ -154,7 +166,7 @@ struct ConnectionCenterView: View {
 
                     Section {
                         ForEach(model.groups, id: \.self) { group in
-                            Label(group, systemImage: "folder")
+                            Label(ConnectionOrganization.displayName(forGroup: group), systemImage: "folder")
                                 .tag(ConnectionFilter.group(group))
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -221,8 +233,15 @@ struct ConnectionCenterView: View {
                     importOpenSSH: { isImportingOpenSSH = true },
                     exportKiteShell: exportKiteShellConfiguration,
                     quickConnect: { model.isPresentingQuickConnect = true },
-                    newConnection: { model.isPresentingNewConnection = true }
+                    newConnection: { model.isPresentingNewConnection = true },
+                    isSelectionMode: isSelectionMode,
+                    toggleSelectionMode: toggleSelectionMode
                 )
+
+                if isSelectionMode {
+                    batchActionBar
+                    Divider()
+                }
 
                 if visibleServers.isEmpty {
                     ContentUnavailableView {
@@ -261,6 +280,9 @@ struct ConnectionCenterView: View {
                             ForEach(visibleServers) { profile in
                                 ServerRow(
                                     profile: profile,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedProfileIDs.contains(profile.id),
+                                    toggleSelection: { toggleSelection(for: profile.id) },
                                     connect: { model.requestOpenSession(for: profile) },
                                     edit: { editingProfile = profile },
                                     diagnose: { diagnosticProfile = profile },
@@ -268,12 +290,29 @@ struct ConnectionCenterView: View {
                                 )
                             .contentShape(Rectangle())
                             .onTapGesture(count: 2) {
+                                guard !isSelectionMode else {
+                                    toggleSelection(for: profile.id)
+                                    return
+                                }
                                 dismissSearchFocus()
                                 model.requestOpenSession(for: profile)
                             }
+                            .onTapGesture {
+                                if isSelectionMode {
+                                    toggleSelection(for: profile.id)
+                                }
+                            }
                             .contextMenu {
+                                if isSelectionMode {
+                                    Button(selectedProfileIDs.contains(profile.id) ? "取消选择" : "选择") {
+                                        toggleSelection(for: profile.id)
+                                    }
+                                    Divider()
+                                }
                                 Button("连接") { model.requestOpenSession(for: profile) }
+                                    .disabled(isSelectionMode)
                                 Button("编辑…") { editingProfile = profile }
+                                    .disabled(isSelectionMode)
                                 Button("复制连接") { model.duplicateServer(profile) }
                                 Button("连接诊断…") { diagnosticProfile = profile }
                                 Button(profile.isFavorite ? "取消收藏" : "收藏") {
@@ -302,6 +341,7 @@ struct ConnectionCenterView: View {
                                 Button("删除…", role: .destructive) {
                                     deletionCandidate = profile
                                 }
+                                .disabled(isSelectionMode)
                             }
                             .draggable(profile.id.uuidString)
                             }
@@ -323,6 +363,12 @@ struct ConnectionCenterView: View {
         .navigationTitle("KiteShell")
         .onAppear {
             DispatchQueue.main.async { dismissSearchFocus() }
+        }
+        .onChange(of: model.servers.map(\.id)) {
+            selectedProfileIDs.formIntersection(Set(model.servers.map(\.id)))
+            if model.servers.isEmpty {
+                isSelectionMode = false
+            }
         }
         .fileImporter(
             isPresented: $isImportingFinalShell,
@@ -391,6 +437,11 @@ struct ConnectionCenterView: View {
                 }
             }
         }
+        .sheet(isPresented: $isPresentingBatchCustomTag) {
+            BatchCustomTagSheet { tag in
+                model.addTag(tag, toServers: selectedProfileIDs)
+            }
+        }
         .confirmationDialog(
             "删除分组？",
             isPresented: Binding(
@@ -399,7 +450,7 @@ struct ConnectionCenterView: View {
             ),
             presenting: groupDeletionCandidate
         ) { group in
-            Button("删除 \(group)", role: .destructive) {
+            Button(AppLanguage.text(chinese: "删除 \(group)", english: "Delete \(group)"), role: .destructive) {
                 model.deleteGroup(group)
                 filter = .all
                 groupDeletionCandidate = nil
@@ -416,7 +467,7 @@ struct ConnectionCenterView: View {
             ),
             presenting: deletionCandidate
         ) { profile in
-            Button("删除 \(profile.name)", role: .destructive) {
+            Button(AppLanguage.text(chinese: "删除 \(profile.name)", english: "Delete \(profile.name)"), role: .destructive) {
                 model.deleteServer(profile)
                 deletionCandidate = nil
             }
@@ -424,7 +475,126 @@ struct ConnectionCenterView: View {
                 deletionCandidate = nil
             }
         } message: { profile in
-            Text("将删除 \(profile.displayAddress) 的保存配置；相关活动会话也会关闭。")
+            Text(AppLanguage.text(
+                chinese: "将删除 \(profile.displayAddress) 的保存配置；相关活动会话也会关闭。",
+                english: "The saved configuration for \(profile.displayAddress) will be deleted, and related active sessions will be closed."
+            ))
+        }
+        .confirmationDialog(
+            "删除所选连接？",
+            isPresented: $isConfirmingBatchDeletion
+        ) {
+            Button(AppLanguage.text(
+                chinese: "删除 \(selectedProfileIDs.count) 条连接",
+                english: "Delete \(selectedProfileIDs.count) Connections"
+            ), role: .destructive) {
+                model.deleteServers(withIDs: selectedProfileIDs)
+                selectedProfileIDs = []
+                isSelectionMode = false
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("保存的连接和对应本地凭据将被删除；相关活动会话也会关闭。")
+        }
+    }
+
+    private var batchActionBar: some View {
+        HStack(spacing: 12) {
+            Text(AppLanguage.text(
+                chinese: "已选择 \(selectedProfileIDs.count) 项",
+                english: "\(selectedProfileIDs.count) Selected"
+            ))
+                .font(.callout.weight(.medium))
+
+            Button(selectedProfileIDs.count == visibleServers.count && !visibleServers.isEmpty ? "取消全选" : "全选当前列表") {
+                let visibleIDs = Set(visibleServers.map(\.id))
+                if selectedProfileIDs.isSuperset(of: visibleIDs), !visibleIDs.isEmpty {
+                    selectedProfileIDs.subtract(visibleIDs)
+                } else {
+                    selectedProfileIDs.formUnion(visibleIDs)
+                }
+            }
+            .buttonStyle(.bordered)
+
+            Divider().frame(height: 20)
+
+            Menu {
+                ForEach(model.groups, id: \.self) { group in
+                    Button(ConnectionOrganization.displayName(forGroup: group)) {
+                        model.moveServers(selectedProfileIDs, toGroup: group)
+                    }
+                }
+            } label: {
+                Label("设置分组", systemImage: "folder")
+            }
+            .disabled(selectedProfileIDs.isEmpty)
+
+            Menu {
+                Section("添加标签") {
+                    ForEach(model.availableConnectionTags, id: \.self) { tag in
+                        Button(ConnectionOrganization.displayName(forTag: tag)) {
+                            model.addTag(tag, toServers: selectedProfileIDs)
+                        }
+                    }
+                    Button("自定义标签…") {
+                        isPresentingBatchCustomTag = true
+                    }
+                }
+                if !selectedTagUnion.isEmpty {
+                    Section("移除标签") {
+                        ForEach(selectedTagUnion, id: \.self) { tag in
+                            Button(ConnectionOrganization.displayName(forTag: tag)) {
+                                model.removeTag(tag, fromServers: selectedProfileIDs)
+                            }
+                        }
+                        Button("清除全部标签", role: .destructive) {
+                            model.clearTags(fromServers: selectedProfileIDs)
+                        }
+                    }
+                }
+            } label: {
+                Label("标签", systemImage: "tag")
+            }
+            .disabled(selectedProfileIDs.isEmpty)
+
+            Menu {
+                Button("添加收藏") {
+                    model.setFavorite(true, forServers: selectedProfileIDs)
+                }
+                Button("取消收藏") {
+                    model.setFavorite(false, forServers: selectedProfileIDs)
+                }
+            } label: {
+                Label("收藏", systemImage: "star")
+            }
+            .disabled(selectedProfileIDs.isEmpty)
+
+            Spacer()
+
+            Button("删除", role: .destructive) {
+                isConfirmingBatchDeletion = true
+            }
+            .buttonStyle(.bordered)
+            .disabled(selectedProfileIDs.isEmpty)
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 10)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+    }
+
+    private func toggleSelectionMode() {
+        isSelectionMode.toggle()
+        if !isSelectionMode {
+            selectedProfileIDs = []
+        }
+    }
+
+    private func toggleSelection(for profileID: UUID) {
+        if selectedProfileIDs.contains(profileID) {
+            selectedProfileIDs.remove(profileID)
+        } else {
+            selectedProfileIDs.insert(profileID)
         }
     }
 
@@ -519,13 +689,18 @@ private struct ConnectionCenterHeader: View {
     let exportKiteShell: () -> Void
     let quickConnect: () -> Void
     let newConnection: () -> Void
+    let isSelectionMode: Bool
+    let toggleSelectionMode: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.title2.weight(.semibold))
-                Text("\(count) 台服务器")
+                Text(AppLanguage.text(
+                    chinese: "\(count) 台服务器",
+                    english: "\(count) Servers"
+                ))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -604,6 +779,17 @@ private struct ConnectionCenterHeader: View {
             .tint(.purple)
             .help("连接排序")
 
+            Button(action: toggleSelectionMode) {
+                Label {
+                    Text(LocalizedStringKey(isSelectionMode ? "完成" : "批量管理"))
+                } icon: {
+                    Image(systemName: isSelectionMode ? "checkmark" : "checklist")
+                }
+            }
+            .buttonStyle(.bordered)
+            .tint(isSelectionMode ? .green : .secondary)
+            .help("批量设置分组、标签、收藏或删除连接")
+
             Button {
                 searchFocused.wrappedValue = false
                 clearTextFocus()
@@ -646,7 +832,7 @@ private struct GroupEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(originalName == nil ? "新建分组" : "重命名分组")
+            Text(LocalizedStringKey(originalName == nil ? "新建分组" : "重命名分组"))
                 .font(.title2.weight(.semibold))
             TextField("分组名称", text: $name)
                 .textFieldStyle(.roundedBorder)
@@ -673,9 +859,44 @@ private struct GroupEditorSheet: View {
     }
 }
 
+private struct BatchCustomTagSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let save: (String) -> Void
+    @State private var tag = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("添加自定义标签")
+                .font(.title2.weight(.semibold))
+            TextField("标签名称", text: $tag)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(commit)
+            HStack {
+                Spacer()
+                Button("取消", role: .cancel) { dismiss() }
+                Button("添加", action: commit)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(tag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+    }
+
+    private func commit() {
+        let value = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        save(value)
+        dismiss()
+    }
+}
+
 private struct ServerRow: View {
     @EnvironmentObject private var model: AppModel
     let profile: ServerProfile
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let toggleSelection: () -> Void
     let connect: () -> Void
     let edit: () -> Void
     let diagnose: () -> Void
@@ -694,6 +915,16 @@ private struct ServerRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
+            if isSelectionMode {
+                Button(action: toggleSelection) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isSelected ? "取消选择" : "选择")
+            }
+
             Image(systemName: "server.rack")
                 .font(.title3.weight(.medium))
                 .foregroundStyle(accent)
@@ -719,14 +950,40 @@ private struct ServerRow: View {
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
                 HStack(spacing: 7) {
-                    Label(profile.group, systemImage: "folder")
-                    Label(profile.authentication.rawValue, systemImage: "key")
+                    Label(ConnectionOrganization.displayName(forGroup: profile.group), systemImage: "folder")
+                    Label {
+                        Text(LocalizedStringKey(profile.authentication.rawValue))
+                    } icon: {
+                        Image(systemName: "key")
+                    }
                     if !profile.quickCommands.isEmpty {
-                        Label("\(profile.quickCommands.count) 个命令", systemImage: "bolt")
+                        Label(
+                            AppLanguage.text(
+                                chinese: "\(profile.quickCommands.count) 个命令",
+                                english: "\(profile.quickCommands.count) Commands"
+                            ),
+                            systemImage: "bolt"
+                        )
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                if !profile.tags.isEmpty {
+                    HStack(spacing: 5) {
+                        ForEach(profile.tags.prefix(4), id: \.self) { tag in
+                            Text(ConnectionOrganization.displayName(forTag: tag))
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.tint.opacity(0.10), in: Capsule())
+                        }
+                        if profile.tags.count > 4 {
+                            Text("+\(profile.tags.count - 4)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
 
             Spacer()
@@ -735,12 +992,17 @@ private struct ServerRow: View {
                 Text("最近连接")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
-                Text(profile.lastConnectedAt.map { $0.formatted(.relative(presentation: .named)) } ?? "从未连接")
+                Text(profile.lastConnectedAt.map {
+                    $0.formatted(
+                        .relative(presentation: .named)
+                            .locale(AppLanguage.current.locale)
+                    )
+                } ?? AppLanguage.text(chinese: "从未连接", english: "Never Connected"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            if !profile.quickCommands.isEmpty {
+            if !isSelectionMode && !profile.quickCommands.isEmpty {
                 Menu {
                     ForEach(profile.quickCommands) { quickCommand in
                         Button {
@@ -756,12 +1018,13 @@ private struct ServerRow: View {
                 .help("连接并执行快捷命令")
             }
 
-            Button("连接", action: connect)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .pointingHandCursor()
+            if !isSelectionMode {
+                Button("连接", action: connect)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .pointingHandCursor()
 
-            Menu {
+                Menu {
                 Button("编辑…", action: edit)
                 Button("复制连接") { model.duplicateServer(profile) }
                 Button("连接诊断…", action: diagnose)
@@ -780,13 +1043,14 @@ private struct ServerRow: View {
                 }
                 Divider()
                 Button("删除…", role: .destructive, action: delete)
-            } label: {
-                Image(systemName: "ellipsis.circle")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .controlSize(.small)
+                .help("更多操作")
+                .pointingHandCursor()
             }
-            .menuStyle(.borderlessButton)
-            .controlSize(.small)
-            .help("更多操作")
-            .pointingHandCursor()
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 13)
@@ -817,7 +1081,7 @@ private struct ConnectionStatusPill: View {
             Circle()
                 .fill(state.tint)
                 .frame(width: 6, height: 6)
-            Text(state.label)
+            Text(LocalizedStringKey(state.label))
         }
         .font(.caption2.weight(.medium))
         .foregroundStyle(.secondary)
