@@ -49,6 +49,13 @@ final class ObservedLocalProcessTerminalView: LocalProcessTerminalView {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard ownsFirstResponder else {
+            // Returning false is important here. SwiftTerm's superclass may still
+            // consume Command-C/Command-V while a SwiftUI field editor owns focus,
+            // which prevents path, search and inline-rename fields from receiving
+            // the standard macOS shortcuts.
+            return false
+        }
         guard let shortcut = TerminalClipboardShortcut.resolve(
             characters: event.charactersIgnoringModifiers,
             modifiers: event.modifierFlags
@@ -69,6 +76,13 @@ final class ObservedLocalProcessTerminalView: LocalProcessTerminalView {
             paste(self)
         }
         return true
+    }
+
+    private var ownsFirstResponder: Bool {
+        guard let firstResponder = window?.firstResponder else { return false }
+        if firstResponder === self { return true }
+        guard let view = firstResponder as? NSView else { return false }
+        return view.isDescendant(of: self)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

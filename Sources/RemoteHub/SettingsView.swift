@@ -168,7 +168,8 @@ struct SettingsView: View {
                 )
                 LabeledContent("签名", value: AppVersion.signingType)
                 Button("查看版本说明") { openBundledDocument("CHANGELOG") }
-                Button("查看开源许可") { openBundledDocument("THIRD_PARTY_NOTICES") }
+                Button("查看 Apache-2.0 许可") { openBundledDocument("LICENSE", extension: nil) }
+                Button("查看第三方许可") { openBundledDocument("THIRD_PARTY_NOTICES") }
             }
         }
         .formStyle(.grouped)
@@ -216,8 +217,8 @@ struct SettingsView: View {
         }
     }
 
-    private func openBundledDocument(_ name: String) {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "md") else {
+    private func openBundledDocument(_ name: String, extension fileExtension: String? = "md") {
+        guard let url = Bundle.main.url(forResource: name, withExtension: fileExtension) else {
             model.importNotice = ImportNotice(title: "文档不可用", message: "当前开发构建中没有找到该文档。")
             return
         }

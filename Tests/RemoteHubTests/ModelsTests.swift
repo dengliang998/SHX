@@ -29,6 +29,14 @@ struct ModelsTests {
         let terminal = ObservedLocalProcessTerminalView(
             frame: NSRect(x: 0, y: 0, width: 640, height: 320)
         )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = terminal
+        #expect(window.makeFirstResponder(terminal))
         terminal.feed(text: "KiteShell clipboard regression test")
         terminal.selectAll(nil)
         pasteboard.clearContents()
@@ -49,6 +57,43 @@ struct ModelsTests {
         )
         #expect(terminal.performKeyEquivalent(with: event))
         #expect(pasteboard.string(forType: .string)?.contains("KiteShell clipboard regression test") == true)
+    }
+
+    @MainActor
+    @Test
+    func terminalDoesNotCaptureClipboardShortcutsFromTextFields() throws {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        let terminal = ObservedLocalProcessTerminalView(
+            frame: NSRect(x: 0, y: 40, width: 640, height: 320)
+        )
+        let textField = NSTextField(frame: NSRect(x: 12, y: 8, width: 300, height: 24))
+        container.addSubview(terminal)
+        container.addSubview(textField)
+        let window = NSWindow(
+            contentRect: container.bounds,
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = container
+        #expect(window.makeFirstResponder(textField))
+
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .command,
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                characters: "v",
+                charactersIgnoringModifiers: "v",
+                isARepeat: false,
+                keyCode: 9
+            )
+        )
+        #expect(!terminal.performKeyEquivalent(with: event))
+        #expect(window.firstResponder !== terminal)
     }
 
     @Test
@@ -693,13 +738,132 @@ struct ModelsTests {
 
     @Test
     func remoteTransferSizeCommandsQuotePaths() {
-        #expect(
-            RemoteFileService.transferSizeCommand(path: "/tmp/a'b.txt", isDirectory: false)
-                == "stat -c %s -- '/tmp/a'\"'\"'b.txt' 2>/dev/null || printf 0"
+        let file = RemoteFileService.transferSizeCommand(path: "/tmp/a'b.txt", isDirectory: false)
+        #expect(file.contains("stat -f"))
+        #expect(file.contains("stat -c"))
+        #expect(file.contains("'/tmp/a'\"'\"'b.txt'"))
+
+        let directory = RemoteFileService.transferSizeCommand(path: "/tmp/a'b", isDirectory: true)
+        #expect(directory.contains("find '/tmp/a'\"'\"'b' -type f"))
+        #expect(directory.contains("stat -f"))
+        #expect(directory.contains("-printf"))
+    }
+
+    @Test
+    func monitorParserSupportsDarwinAndPartialMetrics() throws {
+        let darwin = try LinuxMonitorService.parse("""
+        __PLATFORM__
+        Darwin
+        __UPTIME__
+        43210
+        __LOAD__
+        1.25 1.10 0.95
+        __CPU__
+        0.3750
+        __MEM__
+        MemTotal:\t16777216
+        MemAvailable:\t8388608
+        __NET__
+        123456\t654321
+        __DISKS__
+        /\t100000\t40000\t60000
+        __PROCESSES__
+        42 wang zsh 2.5 1.0
+        __END__
+        """)
+        #expect(darwin.platform == "Darwin")
+        #expect(darwin.uptimeSeconds == 43_210)
+        #expect(darwin.cpuUsage == 0.375)
+        #expect(darwin.memoryUsage == 0.5)
+        #expect(darwin.unavailableSections.isEmpty)
+
+        let partial = try LinuxMonitorService.parse("""
+        __PLATFORM__
+        Darwin
+        __LOAD__
+        0.50 0.40 0.30
+        __DISKS__
+        /\t100000\t50000\t50000
+        __END__
+        """)
+        #expect(partial.loadAverage == "0.50 0.40 0.30")
+        #expect(partial.cpuUsage == nil)
+        #expect(partial.memoryUsage == nil)
+        #expect(partial.disks.count == 1)
+        #expect(partial.unavailableSections.contains("CPU"))
+        #expect(partial.unavailableSections.contains("内存"))
+    }
+
+    @Test
+    func remoteDirectoryParserSupportsPortableHexNames() throws {
+        let listing = try RemoteFileService.parse("""
+        __PWD__\t/Users/wang
+        __FILEHEX__\tf\t4d792046696c652e747874\t128\t2026-08-11 09:22\t644\twang
+        __FILEHEX__\td\t446f63756d656e7473\t160\t2026-08-10 12:00\t755\twang
+        """)
+        #expect(listing.path == "/Users/wang")
+        #expect(listing.entries.map(\.name) == ["Documents", "My File.txt"])
+        #expect(listing.entries[0].isDirectory)
+
+        let command = RemoteFileService.command(path: "/Users/wang")
+        #expect(!command.contains("find ."))
+        #expect(command.contains("stat -f"))
+        #expect(command.contains("stat -c"))
+        #expect(command.contains("od -An -tx1"))
+    }
+
+    @Test
+    func monitorCommandRunsAgainstLocalMac() throws {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", LinuxMonitorService.command]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let text = String(
+            decoding: output.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
         )
-        #expect(
-            RemoteFileService.transferSizeCommand(path: "/tmp/a'b", isDirectory: true)
-                .contains("find '/tmp/a'\"'\"'b' -type f")
+        #expect(process.terminationStatus == 0)
+        let snapshot = try LinuxMonitorService.parse(text)
+        #expect(snapshot.platform == "Darwin")
+        #expect((snapshot.uptimeSeconds ?? 0) > 0)
+        #expect((snapshot.uptimeSeconds ?? .infinity) < 365 * 24 * 60 * 60)
+        #expect(snapshot.memoryTotalKB != nil)
+        #expect(!snapshot.disks.isEmpty)
+        #expect(!snapshot.processes.isEmpty)
+    }
+
+    @Test
+    func portableDirectoryCommandRunsAgainstLocalMac() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "kiteshell-portable-list-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("fixture".utf8).write(to: directory.appending(path: "空 格.txt"))
+        try FileManager.default.createDirectory(
+            at: directory.appending(path: "Documents"),
+            withIntermediateDirectories: false
         )
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", RemoteFileService.command(path: directory.path)]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let text = String(
+            decoding: output.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        )
+        #expect(process.terminationStatus == 0)
+        let listing = try RemoteFileService.parse(text)
+        #expect(listing.path == directory.path)
+        #expect(listing.entries.map(\.name) == ["Documents", "空 格.txt"])
+        #expect(listing.entries.first(where: { $0.name == "空 格.txt" })?.sizeBytes == 7)
     }
 }

@@ -135,16 +135,33 @@ private struct MonitorDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
+                if !data.unavailableSections.isEmpty {
+                    Label(
+                        AppLanguage.text(
+                            chinese: "部分指标无法获取：\(data.unavailableSections.joined(separator: "、"))",
+                            english: "Some metrics are unavailable: \(data.unavailableSections.joined(separator: ", "))"
+                        ),
+                        systemImage: "info.circle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+                }
+
                 LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 7) {
                     MetricCard(
                         title: "运行时间",
-                        value: formatUptime(data.uptimeSeconds),
+                        value: data.uptimeSeconds.map(formatUptime)
+                            ?? AppLanguage.text(chinese: "无法获取", english: "Unavailable"),
                         icon: "clock.fill",
                         tint: .cyan
                     )
                     MetricCard(
                         title: "系统负载",
-                        value: data.loadAverage,
+                        value: data.loadAverage ?? AppLanguage.text(chinese: "无法获取", english: "Unavailable"),
                         icon: "waveform.path.ecg",
                         tint: .orange
                     )
@@ -155,22 +172,23 @@ private struct MonitorDetailView: View {
                         title: "CPU",
                         icon: "cpu",
                         value: data.cpuUsage,
-                        detail: "处理器占用",
+                        detail: data.cpuUsage == nil ? "服务器未返回可识别的 CPU 数据" : "处理器占用",
                         tint: .blue
                     )
                     ResourceUsageRow(
                         title: "内存",
                         icon: "memorychip",
                         value: data.memoryUsage,
-                        detail: "\(bytes((data.memoryTotalKB - data.memoryAvailableKB) * 1024)) / \(bytes(data.memoryTotalKB * 1024))",
+                        detail: memoryDetail(data),
                         tint: .purple
                     )
-                    if data.swapTotalKB > 0 {
+                    if let swapTotalKB = data.swapTotalKB, swapTotalKB > 0,
+                       let swapFreeKB = data.swapFreeKB {
                         ResourceUsageRow(
                             title: "交换空间",
                             icon: "arrow.left.arrow.right",
                             value: data.swapUsage,
-                            detail: "\(bytes((data.swapTotalKB - data.swapFreeKB) * 1024)) / \(bytes(data.swapTotalKB * 1024))",
+                            detail: "\(bytes((swapTotalKB - swapFreeKB) * 1024)) / \(bytes(swapTotalKB * 1024))",
                             tint: .orange
                         )
                     }
@@ -191,7 +209,7 @@ private struct MonitorDetailView: View {
                             tint: .indigo
                         )
                     }
-                    Text("累计接收 \(bytes(data.networkReceiveBytes)) · 发送 \(bytes(data.networkTransmitBytes))")
+                    Text(networkTotal(data))
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
@@ -286,6 +304,25 @@ private struct MonitorDetailView: View {
     private func rate(_ value: Double) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(max(0, value)), countStyle: .file) + "/s"
     }
+
+    private func rate(_ value: Double?) -> String {
+        guard let value else { return "无法获取" }
+        return rate(value)
+    }
+
+    private func memoryDetail(_ data: ServerMonitorData) -> String {
+        guard let total = data.memoryTotalKB, let available = data.memoryAvailableKB else {
+            return "服务器未返回可识别的内存数据"
+        }
+        return "\(bytes((total - available) * 1024)) / \(bytes(total * 1024))"
+    }
+
+    private func networkTotal(_ data: ServerMonitorData) -> String {
+        guard let receive = data.networkReceiveBytes, let transmit = data.networkTransmitBytes else {
+            return "累计网络数据无法获取"
+        }
+        return "累计接收 \(bytes(receive)) · 发送 \(bytes(transmit))"
+    }
 }
 
 private struct MonitorSection<Content: View>: View {
@@ -341,11 +378,11 @@ private struct MetricCard: View {
 private struct ResourceUsageRow: View {
     let title: String
     let icon: String
-    let value: Double
+    let value: Double?
     let detail: String
     let tint: Color
 
-    private var clampedValue: Double { min(1, max(0, value)) }
+    private var clampedValue: Double { min(1, max(0, value ?? 0)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -357,14 +394,21 @@ private struct ResourceUsageRow: View {
                     .font(.callout.weight(.medium))
                     .lineLimit(1)
                 Spacer()
-                Text(clampedValue.formatted(.percent.precision(.fractionLength(0))))
+                Text(value.map { min(1, max(0, $0)).formatted(.percent.precision(.fractionLength(0))) } ?? "—")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(tint)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
                     .background(tint.opacity(0.12), in: Capsule())
             }
-            ColoredProgressBar(value: clampedValue, tint: tint, height: 6)
+            if value != nil {
+                ColoredProgressBar(value: clampedValue, tint: tint, height: 6)
+            } else {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.12))
+                    .frame(height: 6)
+                    .accessibilityLabel("使用率无法获取")
+            }
             Text(detail)
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)

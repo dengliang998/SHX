@@ -2,6 +2,17 @@
 
 All notable KiteShell changes are documented here. The first public release resets semantic versioning to 1.0.0. Earlier alpha builds remain summarized for historical context.
 
+## 1.1.1 — 2026-08-11
+
+- Add native macOS/BSD remote monitoring support and tolerate partially unavailable metrics without breaking the inspector layout.
+- Replace the GNU-only remote directory listing command with a portable Linux/macOS implementation that safely preserves spaces and UTF-8 names.
+- Add macOS-compatible remote file size and version checks.
+- Keep terminal clipboard handling scoped to the terminal first responder so path, search, and inline edit fields receive standard Command-C/Command-V shortcuts.
+- Rename remote files directly in the file list with save and cancel controls instead of opening a rename sheet.
+- Constrain and simplify the empty port-forwarding layout.
+- License KiteShell under Apache License 2.0.
+- Set the application version to 1.1.1 (Build 111).
+
 ## 1.1.0 — 2026-07-31
 
 - Replace free-form connection group entry with a dropdown of sidebar-managed groups; groups can only be created from the connection-center sidebar.

@@ -84,9 +84,13 @@ swift test
 
 提交安全问题前请阅读 [SECURITY.md](SECURITY.md)。
 
+## 开源许可
+
+KiteShell 使用 [Apache License 2.0](LICENSE)。第三方组件仍遵循各自许可，详见[第三方许可](THIRD_PARTY_NOTICES.md)。
+
 ## 当前版本
 
-KiteShell 1.1.0（Build 110）完善连接分组、标签和批量管理，增加应用内中英文切换，并为 GitHub Release 更新检查补充签名发布源、无更新、新版本和发布源不可访问等自动化验证。
+KiteShell 1.1.1（Build 111）增加 macOS/BSD 远端监控与跨平台远程文件列表，部分指标无法读取时不再影响整体布局，并恢复文件区域输入框复制粘贴和列表内重命名。
 
 ## 文档
 

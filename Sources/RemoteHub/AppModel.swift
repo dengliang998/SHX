@@ -1810,12 +1810,14 @@ final class AppModel: ObservableObject {
                   !Task.isCancelled else { return }
             if case .loaded(let previous) = monitorStates[sessionID] {
                 let elapsed = max(0.1, snapshot.sampledAt.timeIntervalSince(previous.sampledAt))
-                snapshot.networkReceiveBytesPerSecond = Double(
-                    max(0, snapshot.networkReceiveBytes - previous.networkReceiveBytes)
-                ) / elapsed
-                snapshot.networkTransmitBytesPerSecond = Double(
-                    max(0, snapshot.networkTransmitBytes - previous.networkTransmitBytes)
-                ) / elapsed
+                if let current = snapshot.networkReceiveBytes,
+                   let prior = previous.networkReceiveBytes {
+                    snapshot.networkReceiveBytesPerSecond = Double(max(0, current - prior)) / elapsed
+                }
+                if let current = snapshot.networkTransmitBytes,
+                   let prior = previous.networkTransmitBytes {
+                    snapshot.networkTransmitBytesPerSecond = Double(max(0, current - prior)) / elapsed
+                }
             }
             monitorStates[sessionID] = .loaded(snapshot)
         } catch is CancellationError {

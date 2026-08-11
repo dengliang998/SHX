@@ -76,7 +76,7 @@ struct KiteShellSelfTests {
         try require(RemoteFileService.childPath(parent: listing.path, name: "Projects") == "/home/demo/Projects", "子目录路径错误")
         try require(RemoteFileService.parentPath(of: listing.path) == "/home", "父目录路径错误")
         let quotedCommand = RemoteFileService.command(path: "/tmp/a'b")
-        try require(quotedCommand.contains("cd -- '/tmp/a'\"'\"'b'"), "远程路径 Shell 转义错误")
+        try require(quotedCommand.contains("cd '/tmp/a'\"'\"'b'"), "远程路径 Shell 转义错误")
         let createCommand = RemoteFileService.createDirectoryCommand(parent: listing.path, name: "a'b")
         try require(createCommand == "mkdir -- '/home/demo/a'\"'\"'b'", "新建目录命令转义错误")
         let deleteCommand = RemoteFileService.deleteCommand(parent: listing.path, entry: listing.entries[1])

@@ -284,28 +284,41 @@ struct RemoteDiskInfo: Identifiable, Sendable {
 
 struct ServerMonitorData: Sendable {
     let sampledAt: Date
-    let uptimeSeconds: Double
-    let loadAverage: String
-    let cpuUsage: Double
-    let memoryTotalKB: Int64
-    let memoryAvailableKB: Int64
-    let swapTotalKB: Int64
-    let swapFreeKB: Int64
-    let networkReceiveBytes: Int64
-    let networkTransmitBytes: Int64
-    var networkReceiveBytesPerSecond: Double
-    var networkTransmitBytesPerSecond: Double
+    let platform: String
+    let uptimeSeconds: Double?
+    let loadAverage: String?
+    let cpuUsage: Double?
+    let memoryTotalKB: Int64?
+    let memoryAvailableKB: Int64?
+    let swapTotalKB: Int64?
+    let swapFreeKB: Int64?
+    let networkReceiveBytes: Int64?
+    let networkTransmitBytes: Int64?
+    var networkReceiveBytesPerSecond: Double?
+    var networkTransmitBytesPerSecond: Double?
     let processes: [RemoteProcessInfo]
     let disks: [RemoteDiskInfo]
 
-    var memoryUsage: Double {
-        guard memoryTotalKB > 0 else { return 0 }
+    var memoryUsage: Double? {
+        guard let memoryTotalKB, let memoryAvailableKB, memoryTotalKB > 0 else { return nil }
         return min(1, max(0, Double(memoryTotalKB - memoryAvailableKB) / Double(memoryTotalKB)))
     }
 
-    var swapUsage: Double {
-        guard swapTotalKB > 0 else { return 0 }
+    var swapUsage: Double? {
+        guard let swapTotalKB, let swapFreeKB, swapTotalKB > 0 else { return nil }
         return min(1, max(0, Double(swapTotalKB - swapFreeKB) / Double(swapTotalKB)))
+    }
+
+    var unavailableSections: [String] {
+        var values: [String] = []
+        if uptimeSeconds == nil { values.append(AppLanguage.text(chinese: "运行时间", english: "Uptime")) }
+        if loadAverage == nil { values.append(AppLanguage.text(chinese: "系统负载", english: "Load Average")) }
+        if cpuUsage == nil { values.append("CPU") }
+        if memoryUsage == nil { values.append(AppLanguage.text(chinese: "内存", english: "Memory")) }
+        if networkReceiveBytes == nil || networkTransmitBytes == nil {
+            values.append(AppLanguage.text(chinese: "网络", english: "Network"))
+        }
+        return values
     }
 }
 
@@ -319,6 +332,34 @@ enum MonitorLoadState: Sendable {
 enum LinuxMonitorService {
     static let command = #"""
 LC_ALL=C
+platform=$(uname -s 2>/dev/null || printf Unknown)
+echo __PLATFORM__
+printf '%s\n' "$platform"
+if [ "$platform" = "Darwin" ]; then
+echo __UPTIME__
+boot=$(sysctl -n kern.boottime 2>/dev/null | sed -E 's/^\{ sec = ([0-9]+),.*/\1/')
+now=$(date +%s 2>/dev/null)
+if [ -n "$boot" ] && [ -n "$now" ]; then expr "$now" - "$boot" 2>/dev/null; fi
+echo __LOAD__
+sysctl -n vm.loadavg 2>/dev/null | tr -d '{}'
+echo __CPU__
+top -l 1 -n 0 2>/dev/null | awk '/CPU usage/ {gsub("%","",$7); idle=$7} END {if (idle != "") printf "%.4f\n", (100-idle)/100}'
+echo __MEM__
+total_bytes=$(sysctl -n hw.memsize 2>/dev/null)
+page_size=$(vm_stat 2>/dev/null | awk 'NR==1 {gsub("[^0-9]","",$8); print $8}')
+if [ -n "$total_bytes" ]; then printf 'MemTotal:\t%s\n' "$((total_bytes / 1024))"; fi
+vm_stat 2>/dev/null | awk -v page="$page_size" '
+    /Pages free:/ {gsub("\\.","",$3); free=$3}
+    /Pages inactive:/ {gsub("\\.","",$3); inactive=$3}
+    /Pages speculative:/ {gsub("\\.","",$3); speculative=$3}
+    END {if (page > 0) printf "MemAvailable:\t%.0f\n", (free+inactive+speculative)*page/1024}'
+echo __NET__
+netstat -ibn 2>/dev/null | awk 'NR>1 && $1 != "lo0" && $7 ~ /^[0-9]+$/ && $10 ~ /^[0-9]+$/ {rx+=$7; tx+=$10} END {if (NR>1) print rx "\t" tx}'
+echo __DISKS__
+df -Pk 2>/dev/null | awk 'NR>1 && $2 ~ /^[0-9]+$/ {print $NF "\t" $2 "\t" $3 "\t" $4}'
+echo __PROCESSES__
+ps -Ao pid=,user=,comm=,%cpu=,%mem= -r 2>/dev/null | head -n 6
+else
 echo __UPTIME__
 cat /proc/uptime 2>/dev/null
 echo __LOAD__
@@ -333,22 +374,25 @@ echo __DISKS__
 df -Pk -x tmpfs -x devtmpfs 2>/dev/null | awk 'NR>1 {print $6 "\t" $2 "\t" $3 "\t" $4}'
 echo __PROCESSES__
 ps -eo pid=,user=,comm=,%cpu=,%mem= --sort=-%cpu 2>/dev/null | head -n 6
+fi
 echo __END__
 """#
 
     static func parse(_ output: String) throws -> ServerMonitorData {
         let sections = splitSections(output)
-        guard let uptimeLine = sections["UPTIME"]?.first,
-              let uptimeSeconds = Double(uptimeLine.split(separator: " ").first ?? ""),
-              let cpuLine = sections["CPU"]?.first,
-              let cpuUsage = Double(cpuLine) else {
+        let platform = sections["PLATFORM"]?.first ?? "Unknown"
+        let uptimeSeconds = sections["UPTIME"]?.first.flatMap {
+            Double($0.split(separator: " ").first ?? "")
+        }
+        let cpuUsage = sections["CPU"]?.first.flatMap(Double.init)
+        let load = sections["LOAD"]?.first.map {
+            $0.split(separator: " ").prefix(3).joined(separator: " ")
+        }
+        guard uptimeSeconds != nil || cpuUsage != nil || load != nil
+                || sections["MEM"]?.isEmpty == false || sections["DISKS"]?.isEmpty == false
+                || sections["PROCESSES"]?.isEmpty == false else {
             throw RemoteCommandError.invalidOutput
         }
-
-        let load = sections["LOAD"]?.first?
-            .split(separator: " ")
-            .prefix(3)
-            .joined(separator: " ") ?? "—"
 
         var memory: [String: Int64] = [:]
         for line in sections["MEM"] ?? [] {
@@ -359,8 +403,8 @@ echo __END__
         }
 
         let networkParts = sections["NET"]?.first?.split(separator: "\t") ?? []
-        let receive = networkParts.count > 0 ? Int64(networkParts[0]) ?? 0 : 0
-        let transmit = networkParts.count > 1 ? Int64(networkParts[1]) ?? 0 : 0
+        let receive = networkParts.count > 0 ? Int64(networkParts[0]) : nil
+        let transmit = networkParts.count > 1 ? Int64(networkParts[1]) : nil
 
         let disks = (sections["DISKS"] ?? []).compactMap { line -> RemoteDiskInfo? in
             let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
@@ -375,29 +419,33 @@ echo __END__
 
         let processes = (sections["PROCESSES"] ?? []).compactMap { line -> RemoteProcessInfo? in
             let parts = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-            guard parts.count >= 5, let pid = Int(parts[0]) else { return nil }
+            guard parts.count >= 5,
+                  let pid = Int(parts[0]),
+                  let cpu = Double(parts[parts.count - 2]),
+                  let memory = Double(parts[parts.count - 1]) else { return nil }
             return RemoteProcessInfo(
                 id: pid,
                 user: String(parts[1]),
-                command: String(parts[2]),
-                cpuPercent: Double(parts[3]) ?? 0,
-                memoryPercent: Double(parts[4]) ?? 0
+                command: parts[2..<(parts.count - 2)].joined(separator: " "),
+                cpuPercent: cpu,
+                memoryPercent: memory
             )
         }
 
         return ServerMonitorData(
             sampledAt: Date(),
+            platform: platform,
             uptimeSeconds: uptimeSeconds,
             loadAverage: load,
-            cpuUsage: min(1, max(0, cpuUsage)),
-            memoryTotalKB: memory["MemTotal"] ?? 0,
-            memoryAvailableKB: memory["MemAvailable"] ?? 0,
-            swapTotalKB: memory["SwapTotal"] ?? 0,
-            swapFreeKB: memory["SwapFree"] ?? 0,
+            cpuUsage: cpuUsage.map { min(1, max(0, $0)) },
+            memoryTotalKB: memory["MemTotal"],
+            memoryAvailableKB: memory["MemAvailable"],
+            swapTotalKB: memory["SwapTotal"],
+            swapFreeKB: memory["SwapFree"],
             networkReceiveBytes: receive,
             networkTransmitBytes: transmit,
-            networkReceiveBytesPerSecond: 0,
-            networkTransmitBytesPerSecond: 0,
+            networkReceiveBytesPerSecond: receive == nil ? nil : 0,
+            networkTransmitBytesPerSecond: transmit == nil ? nil : 0,
             processes: processes,
             disks: disks
         )
@@ -447,9 +495,23 @@ enum RemoteFileService {
         let quoted = shellQuote(requestedPath)
         return #"""
 LC_ALL=C
-cd -- \#(quoted) || exit 2
+cd \#(quoted) || exit 2
 printf '__PWD__\t%s\n' "$PWD"
-find . -mindepth 1 -maxdepth 1 -printf '__FILE__\t%y\t%f\t%s\t%TY-%Tm-%Td %TH:%TM\t%m\t%u\n' 2>/dev/null
+platform=$(uname -s 2>/dev/null || printf Unknown)
+if [ -n "$ZSH_VERSION" ]; then setopt local_options nonomatch; fi
+for entry in ./* ./.[!.]* ./..?*; do
+    if [ ! -e "$entry" ] && [ ! -L "$entry" ]; then continue; fi
+    name=${entry#./}
+    name_hex=$(printf '%s' "$name" | od -An -tx1 | tr -d ' \n')
+    if [ -d "$entry" ]; then kind=d; else kind=f; fi
+    if [ "$platform" = "Darwin" ] || [ "$platform" = "FreeBSD" ]; then
+        meta=$(stat -f '%z\t%Sm\t%Lp\t%Su' -t '%Y-%m-%d %H:%M' "$entry" 2>/dev/null) || meta='0\t—\t—\t—'
+    else
+        meta=$(stat -c '%s\t%.16y\t%a\t%U' -- "$entry" 2>/dev/null) || meta='0\t—\t—\t—'
+    fi
+    printf '__FILEHEX__\t%s\t%s\t%b\n' "$kind" "$name_hex" "$meta"
+done
+true
 """#
     }
 
@@ -461,6 +523,18 @@ find . -mindepth 1 -maxdepth 1 -printf '__FILE__\t%y\t%f\t%s\t%TY-%Tm-%Td %TH:%T
             let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
             if parts.first == "__PWD__", parts.count >= 2 {
                 path = String(parts[1])
+            } else if parts.first == "__FILEHEX__", parts.count >= 7,
+                      let name = decodeHexName(String(parts[2])) {
+                entries.append(
+                    RemoteFileEntry(
+                        name: name,
+                        isDirectory: parts[1] == "d",
+                        sizeBytes: Int64(parts[3]) ?? 0,
+                        modifiedAt: String(parts[4]),
+                        permissions: String(parts[5]),
+                        owner: String(parts[6])
+                    )
+                )
             } else if parts.first == "__FILE__", parts.count >= 7 {
                 entries.append(
                     RemoteFileEntry(
@@ -481,6 +555,19 @@ find . -mindepth 1 -maxdepth 1 -printf '__FILE__\t%y\t%f\t%s\t%TY-%Tm-%Td %TH:%T
             return $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
         return RemoteDirectoryListing(path: path, entries: entries)
+    }
+
+    private static func decodeHexName(_ value: String) -> String? {
+        guard value.count.isMultiple(of: 2) else { return nil }
+        var data = Data(capacity: value.count / 2)
+        var index = value.startIndex
+        while index < value.endIndex {
+            let next = value.index(index, offsetBy: 2)
+            guard let byte = UInt8(value[index..<next], radix: 16) else { return nil }
+            data.append(byte)
+            index = next
+        }
+        return String(data: data, encoding: .utf8)
     }
 
     static func childPath(parent: String, name: String) -> String {
@@ -533,13 +620,13 @@ find . -mindepth 1 -maxdepth 1 -printf '__FILE__\t%y\t%f\t%s\t%TY-%Tm-%Td %TH:%T
     static func transferSizeCommand(path: String, isDirectory: Bool) -> String {
         let quoted = shellQuote(path)
         if isDirectory {
-            return "find \(quoted) -type f -printf '%s\\n' 2>/dev/null | awk '{s+=$1} END {print s+0}'"
+            return "if [ \"$(uname -s 2>/dev/null)\" = Darwin ]; then find \(quoted) -type f -exec stat -f '%z' {} \\; 2>/dev/null; else find \(quoted) -type f -printf '%s\\n' 2>/dev/null; fi | awk '{s+=$1} END {print s+0}'"
         }
-        return "stat -c %s -- \(quoted) 2>/dev/null || printf 0"
+        return "stat -f '%z' \(quoted) 2>/dev/null || stat -c '%s' -- \(quoted) 2>/dev/null || printf 0"
     }
 
     static func versionCommand(path: String) -> String {
-        "stat -c '%s:%Y' -- \(shellQuote(path)) 2>/dev/null || true"
+        "stat -f '%z:%m' \(shellQuote(path)) 2>/dev/null || stat -c '%s:%Y' -- \(shellQuote(path)) 2>/dev/null || true"
     }
 
     static func shellQuote(_ value: String) -> String {

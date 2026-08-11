@@ -43,11 +43,15 @@ struct PortForwardPanel: View {
             Divider()
 
             if forwards.isEmpty {
-                ContentUnavailableView {
-                    Label("还没有端口转发", systemImage: "point.3.connected.trianglepath.dotted")
-                } description: {
+                VStack(spacing: 12) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .font(.system(size: 34, weight: .light))
+                        .foregroundStyle(.secondary)
+                    Text("还没有端口转发")
+                        .font(.headline)
                     Text("可以创建本地转发、远程转发或动态 SOCKS5 代理。")
-                } actions: {
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     Button("新建转发") {
                         editingForward = PortForwardConfiguration(
                             name: "",
@@ -60,6 +64,8 @@ struct PortForwardPanel: View {
                         )
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(24)
             } else {
                 List(forwards) { forward in
                     HStack(spacing: 12) {
@@ -127,7 +133,7 @@ struct PortForwardPanel: View {
             }
             .padding(16)
         }
-        .frame(width: 760, height: 600)
+        .frame(width: 720, height: 500, alignment: .top)
         .sheet(item: $editingForward) { configuration in
             PortForwardEditor(configuration: configuration) { saved in
                 model.savePortForward(saved, for: session.id)

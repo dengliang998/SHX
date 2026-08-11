@@ -10,6 +10,7 @@ mkdir -p "$BUILD_DIR"
     -parse-as-library \
     -framework LocalAuthentication \
     -framework Security \
+    "$ROOT_DIR/Sources/RemoteHub/AppLanguage.swift" \
     "$ROOT_DIR/Sources/RemoteHub/Models.swift" \
     "$ROOT_DIR/Sources/RemoteHub/RemoteServices.swift" \
     "$ROOT_DIR/Sources/RemoteHub/FinalShellImporter.swift" \

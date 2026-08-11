@@ -36,7 +36,10 @@ struct RemoteFilePanel: View {
     @State private var navigationHistory: [String] = []
     @State private var navigationIndex = -1
     @State private var isNavigatingHistory = false
+    @State private var renamingEntryID: String?
+    @State private var renameDraft = ""
     @FocusState private var isPathFocused: Bool
+    @FocusState private var focusedRenameEntryID: String?
 
     private var state: RemoteDirectoryState {
         model.remoteDirectoryStates[session.id] ?? .idle
@@ -400,13 +403,21 @@ struct RemoteFilePanel: View {
                     FileHeaderRow()
                     Divider()
                     List(entries) { entry in
-                        RemoteFileRow(entry: entry) {
-                            if entry.isDirectory {
-                                model.openRemoteDirectory(for: session.id, entry: entry)
-                            } else {
-                                model.openRemoteFileForEditing(entry, from: session.id)
-                            }
-                        }
+                        RemoteFileRow(
+                            entry: entry,
+                            open: {
+                                if entry.isDirectory {
+                                    model.openRemoteDirectory(for: session.id, entry: entry)
+                                } else {
+                                    model.openRemoteFileForEditing(entry, from: session.id)
+                                }
+                            },
+                            isRenaming: renamingEntryID == entry.id,
+                            renameText: $renameDraft,
+                            renameFocus: $focusedRenameEntryID,
+                            commitRename: commitInlineRename,
+                            cancelRename: cancelInlineRename
+                        )
                         .contextMenu {
                             if entry.isDirectory {
                                 Button {
@@ -494,9 +505,9 @@ struct RemoteFilePanel: View {
                             }
 
                             Button {
-                                nameRequest = RemoteNameRequest(kind: .rename(entry), initialValue: entry.name)
+                                beginInlineRename(entry)
                             } label: {
-                                Label("重命名…", systemImage: "pencil")
+                                Label("重命名", systemImage: "pencil")
                             }
 
                             Button {
@@ -691,6 +702,32 @@ struct RemoteFilePanel: View {
         let base = url.deletingPathExtension().lastPathComponent
         return ext.isEmpty ? "\(base) 副本" : "\(base) 副本.\(ext)"
     }
+
+    private func beginInlineRename(_ entry: RemoteFileEntry) {
+        renamingEntryID = entry.id
+        renameDraft = entry.name
+        DispatchQueue.main.async { focusedRenameEntryID = entry.id }
+    }
+
+    private func commitInlineRename() {
+        guard let entryID = renamingEntryID,
+              case .loaded(let listing) = state,
+              let entry = listing.entries.first(where: { $0.id == entryID }) else {
+            cancelInlineRename()
+            return
+        }
+        let value = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        cancelInlineRename()
+        guard value != entry.name else { return }
+        model.renameRemoteEntry(entry, to: value, in: session.id)
+    }
+
+    private func cancelInlineRename() {
+        focusedRenameEntryID = nil
+        renamingEntryID = nil
+        renameDraft = ""
+    }
 }
 
 private struct RemoteNameRequest: Identifiable {
@@ -839,6 +876,11 @@ private struct FileHeaderRow: View {
 private struct RemoteFileRow: View {
     let entry: RemoteFileEntry
     let open: () -> Void
+    let isRenaming: Bool
+    @Binding var renameText: String
+    let renameFocus: FocusState<String?>.Binding
+    let commitRename: () -> Void
+    let cancelRename: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -846,9 +888,29 @@ private struct RemoteFileRow: View {
                 Image(systemName: entry.isDirectory ? "folder.fill" : "doc")
                     .foregroundStyle(entry.isDirectory ? Color.accentColor : Color.secondary)
                     .frame(width: 16)
-                Text(entry.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if isRenaming {
+                    TextField("名称", text: $renameText)
+                        .textFieldStyle(.roundedBorder)
+                        .focused(renameFocus, equals: entry.id)
+                        .onSubmit(commitRename)
+                        .onExitCommand(perform: cancelRename)
+                    Button(action: commitRename) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
+                    .help("保存名称")
+                    Button(action: cancelRename) {
+                        Image(systemName: "xmark.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("取消重命名")
+                } else {
+                    Text(entry.name)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -875,7 +937,9 @@ private struct RemoteFileRow: View {
         }
         .font(.callout)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: open)
+        .onTapGesture(count: 2) {
+            if !isRenaming { open() }
+        }
         .help(
             entry.isDirectory
                 ? "双击打开文件夹"

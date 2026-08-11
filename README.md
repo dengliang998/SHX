@@ -12,6 +12,7 @@
     <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111111?logo=apple">
     <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-native-111111?logo=apple">
     <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
+    <img alt="License" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg">
     <img alt="Release" src="https://img.shields.io/github/v/release/jinwang-aibai/KiteShell?display_name=tag">
   </p>
 </div>
@@ -94,6 +95,10 @@ The repository also includes isolated password-SSH and SFTP edit round-trip inte
 
 Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or sharing diagnostics.
 
+## License
+
+KiteShell is licensed under the [Apache License 2.0](LICENSE). Third-party components retain their respective licenses; see [Third-party Notices](THIRD_PARTY_NOTICES.md).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
@@ -106,4 +111,4 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or sharing diag
 
 ## Project status
 
-Version 1.1.0 improves connection organization with constrained group selection, batch operations, built-in LAN/WAN tags, and an in-app Chinese/English switch. The updater check path now has signed-release fixture coverage and reports inaccessible/private GitHub release sources clearly. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.
+Version 1.1.1 adds macOS/BSD remote monitoring and portable remote-file listing, keeps partially unavailable metrics from disrupting the workspace, restores standard clipboard shortcuts in file fields, and adds inline file renaming. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.
