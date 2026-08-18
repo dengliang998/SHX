@@ -18,55 +18,86 @@ struct CommandLibraryPanel: View {
     @State private var executionCommand: QuickCommand?
     @State private var scope: Scope = .connection
 
+    private var storedCommands: [QuickCommand] {
+        switch scope {
+        case .connection:
+            model.quickCommands(for: session.id)
+        case .global:
+            model.globalQuickCommands
+        case .history:
+            []
+        }
+    }
+
     private var commands: [QuickCommand] {
-        let commands = scope == .global ? model.globalQuickCommands : model.quickCommands(for: session.id)
-        guard !searchText.isEmpty else { return commands }
-        return commands.filter {
+        guard !searchText.isEmpty else { return storedCommands }
+        return storedCommands.filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
                 || $0.command.localizedCaseInsensitiveContains(searchText)
                 || $0.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
+    private var scopeSummary: String {
+        if scope == .history {
+            return "\(model.commandExecutionHistory.count) 条执行记录"
+        }
+        if searchText.isEmpty {
+            return "\(storedCommands.count) 条已保存命令"
+        }
+        return "\(commands.count)/\(storedCommands.count) 条命令"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Picker("范围", selection: $scope) {
-                    ForEach(Scope.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 250)
-                Text("\(commands.count) 条已保存命令")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                TextField("搜索命令", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 180)
-                Button {
-                    isImportingScript = true
-                } label: {
-                    Label("导入本地脚本", systemImage: "square.and.arrow.down")
-                }
-                .buttonStyle(.bordered)
-                .tint(.teal)
-                .controlSize(.small)
-                .pointingHandCursor()
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    Picker("范围", selection: $scope) {
+                        ForEach(Scope.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 260)
 
-                Button {
-                    editingCommand = QuickCommand(name: "", command: "")
-                } label: {
-                    Label("新建命令", systemImage: "plus")
+                    Spacer(minLength: 12)
+
+                    Text(scopeSummary)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(width: 132, alignment: .trailing)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .controlSize(.small)
-                .pointingHandCursor()
-                .disabled(scope == .history)
+
+                HStack(spacing: 8) {
+                    TextField(scope == .history ? "历史记录不支持筛选" : "搜索命令", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 150, maxWidth: .infinity)
+                        .disabled(scope == .history)
+
+                    Button {
+                        isImportingScript = true
+                    } label: {
+                        Label("导入本地脚本", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .pointingHandCursor(scope != .history)
+                    .disabled(scope == .history)
+
+                    Button {
+                        editingCommand = QuickCommand(name: "", command: "")
+                    } label: {
+                        Label("新建命令", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .pointingHandCursor(scope != .history)
+                    .disabled(scope == .history)
+                }
             }
             .padding(.horizontal, 12)
-            .frame(height: 40)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+            .padding(.vertical, 9)
+            .background(.bar)
 
             Divider()
 

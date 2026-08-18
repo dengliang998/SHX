@@ -257,15 +257,12 @@ struct ConnectionCenterView: View {
                                 model.isPresentingNewConnection = true
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(.blue)
                             Button("导入 FinalShell") {
                                 isImportingFinalShell = true
                             }
                             .buttonStyle(.bordered)
-                            .tint(.teal)
                             Button("导入 KiteShell") { isImportingKiteShell = true }
                                 .buttonStyle(.bordered)
-                                .tint(.indigo)
                             }
                             Button("打开使用说明") { isPresentingGettingStarted = true }
                         }
@@ -728,7 +725,6 @@ private struct ConnectionCenterHeader: View {
                     Label("返回会话", systemImage: "arrow.left.to.line")
                 }
                 .buttonStyle(.bordered)
-                .tint(.indigo)
                 .help("返回当前终端会话")
                 .pointingHandCursor()
             }
@@ -769,7 +765,6 @@ private struct ConnectionCenterHeader: View {
                 Label("导入与导出", systemImage: "arrow.up.arrow.down.square")
             }
             .buttonStyle(.bordered)
-            .tint(.teal)
             .help("导入或导出连接配置，不导出密码")
             .pointingHandCursor()
 
@@ -783,7 +778,6 @@ private struct ConnectionCenterHeader: View {
                 Label("排序", systemImage: "arrow.up.arrow.down")
             }
             .menuStyle(.borderlessButton)
-            .tint(.purple)
             .help("连接排序")
 
             Button(action: toggleSelectionMode) {
@@ -794,7 +788,6 @@ private struct ConnectionCenterHeader: View {
                 }
             }
             .buttonStyle(.bordered)
-            .tint(isSelectionMode ? .green : .secondary)
             .help("批量设置分组、标签、收藏或删除连接")
 
             Button {
@@ -805,7 +798,6 @@ private struct ConnectionCenterHeader: View {
                 Label("快速连接", systemImage: "bolt.fill")
             }
             .buttonStyle(.bordered)
-            .tint(.orange)
             .help("输入 user@host 快速打开临时会话（⌘K）")
             .pointingHandCursor()
 
@@ -817,7 +809,6 @@ private struct ConnectionCenterHeader: View {
                 Label("新建连接", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
-            .tint(.blue)
             .pointingHandCursor()
         }
         .padding(.horizontal, 22)
@@ -916,12 +907,6 @@ private struct ServerRow: View {
             .sorted { $0.openedAt < $1.openedAt }
     }
 
-    private var accent: Color {
-        let palette: [Color] = [.blue, .teal, .indigo, .purple, .orange]
-        let value = profile.name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
-        return palette[value % palette.count]
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 11) {
@@ -937,9 +922,9 @@ private struct ServerRow: View {
 
                 Image(systemName: "server.rack")
                     .font(.title3.weight(.medium))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(.tint)
                     .frame(width: 42, height: 42)
-                    .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
+                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -969,12 +954,9 @@ private struct ServerRow: View {
                 } icon: {
                     Image(systemName: "key")
                 }
-                if !profile.quickCommands.isEmpty {
-                    Label("\(profile.quickCommands.count)", systemImage: "bolt")
-                }
             }
             .font(.caption)
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(.secondary)
 
             if !profile.tags.isEmpty {
                 HStack(spacing: 5) {
@@ -996,102 +978,101 @@ private struct ServerRow: View {
 
             if !profileSessions.isEmpty {
                 Divider()
-                HStack(spacing: 7) {
-                    Label(
-                        AppLanguage.text(
-                            chinese: "\(profileSessions.count) 个会话",
-                            english: "\(profileSessions.count) Sessions"
-                        ),
-                        systemImage: "rectangle.stack"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
-                    ForEach(Array(profileSessions.enumerated()), id: \.element.id) { index, session in
-                        SessionStateIndicator(number: index + 1, state: session.state)
-                    }
-                }
+                SessionStateSummary(sessions: profileSessions)
             }
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                Text(profile.lastConnectedAt.map {
-                    $0.formatted(
-                        .relative(presentation: .named)
-                            .locale(AppLanguage.current.locale)
-                    )
-                } ?? AppLanguage.text(chinese: "从未连接", english: "Never Connected"))
-                .lineLimit(1)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Label {
+                    Text(profile.lastConnectedAt.map {
+                        $0.formatted(
+                            .relative(presentation: .named)
+                                .locale(AppLanguage.current.locale)
+                        )
+                    } ?? AppLanguage.text(chinese: "从未连接", english: "Never Connected"))
+                    .lineLimit(1)
+                } icon: {
+                    Image(systemName: "clock")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            if !isSelectionMode {
-                HStack(spacing: 8) {
-                    if !profile.quickCommands.isEmpty {
+                Spacer(minLength: 8)
+
+                if !isSelectionMode {
+                    Group {
+                        if !profile.quickCommands.isEmpty {
+                            Menu {
+                                ForEach(profile.quickCommands) { quickCommand in
+                                    Button {
+                                        model.requestRunQuickCommand(quickCommand, for: profile)
+                                    } label: {
+                                        Label(quickCommand.name, systemImage: "play.fill")
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "bolt.circle")
+                            }
+                            .menuStyle(.borderlessButton)
+                            .controlSize(.small)
+                            .help("连接并执行快捷命令")
+                            .pointingHandCursor()
+                        }
+                        Button("连接", action: connect)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .pointingHandCursor()
+
                         Menu {
-                            ForEach(profile.quickCommands) { quickCommand in
-                                Button {
-                                    model.requestRunQuickCommand(quickCommand, for: profile)
-                                } label: {
-                                    Label(quickCommand.name, systemImage: "play.fill")
+                            Button("编辑…", action: edit)
+                            Button("复制连接") { model.duplicateServer(profile) }
+                            Button("连接诊断…", action: diagnose)
+                            Button(profile.isFavorite ? "取消收藏" : "收藏") {
+                                model.toggleFavorite(profile)
+                            }
+                            if profile.authentication == .password {
+                                Button("忘记已保存密码") {
+                                    model.forgetPassword(for: profile)
                                 }
                             }
+                            if profile.authentication == .privateKey {
+                                Button("忘记已保存私钥口令") {
+                                    model.forgetPrivateKeyPassphrase(for: profile)
+                                }
+                            }
+                            Divider()
+                            Button("删除…", role: .destructive, action: delete)
                         } label: {
-                            Image(systemName: "bolt.circle")
+                            Image(systemName: "ellipsis.circle")
                         }
                         .menuStyle(.borderlessButton)
-                        .help("连接并执行快捷命令")
-                    }
-                    Spacer()
-                    Button("连接", action: connect)
-                        .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        .help("更多操作")
                         .pointingHandCursor()
-
-                    Menu {
-                        Button("编辑…", action: edit)
-                        Button("复制连接") { model.duplicateServer(profile) }
-                        Button("连接诊断…", action: diagnose)
-                        Button(profile.isFavorite ? "取消收藏" : "收藏") {
-                            model.toggleFavorite(profile)
-                        }
-                        if profile.authentication == .password {
-                            Button("忘记已保存密码") {
-                                model.forgetPassword(for: profile)
-                            }
-                        }
-                        if profile.authentication == .privateKey {
-                            Button("忘记已保存私钥口令") {
-                                model.forgetPrivateKeyPassphrase(for: profile)
-                            }
-                        }
-                        Divider()
-                        Button("删除…", role: .destructive, action: delete)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
                     }
-                    .menuStyle(.borderlessButton)
-                    .controlSize(.small)
-                    .help("更多操作")
-                    .pointingHandCursor()
+                    .opacity(isHovering ? 1 : 0)
+                    .allowsHitTesting(isHovering)
+                    .accessibilityHidden(!isHovering)
                 }
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
         .background(
-            Color(nsColor: .controlBackgroundColor)
-                .opacity(isHovering ? 1 : 0.78),
+            Color(nsColor: .controlBackgroundColor),
             in: RoundedRectangle(cornerRadius: 13)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 13)
-                .stroke(isHovering ? accent.opacity(0.35) : Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 0.7)
+                .stroke(
+                    isHovering
+                        ? Color.accentColor.opacity(0.42)
+                        : Color(nsColor: .separatorColor).opacity(0.70),
+                    lineWidth: 1
+                )
         }
-        .shadow(color: .black.opacity(isHovering ? 0.08 : 0.025), radius: isHovering ? 8 : 2, y: 2)
+        .shadow(color: .black.opacity(isHovering ? 0.10 : 0.055), radius: isHovering ? 9 : 4, y: 2)
         .onHover { isHovering = $0 }
         .pointingHandCursor()
         .accessibilityElement(children: .combine)
@@ -1101,18 +1082,49 @@ private struct ServerRow: View {
     }
 }
 
-private struct SessionStateIndicator: View {
-    let number: Int
-    let state: ConnectionState
+private struct SessionStateSummary: View {
+    let sessions: [Session]
+
+    private let displayOrder: [ConnectionState] = [
+        .connected,
+        .connecting,
+        .reconnecting,
+        .failed
+    ]
+
+    private var summary: String {
+        displayOrder.compactMap { state in
+            let count = sessions.lazy.filter { $0.state == state }.count
+            guard count > 0 else { return nil }
+            return sessions.count == 1 ? state.label : "\(state.label) \(count)"
+        }
+        .joined(separator: " · ")
+    }
 
     var body: some View {
-        Text("\(number)")
-            .font(.caption2.bold().monospacedDigit())
-            .foregroundStyle(state.tint)
-            .frame(width: 22, height: 22)
-            .background(state.tint.opacity(0.13), in: Circle())
-            .overlay { Circle().stroke(state.tint.opacity(0.45), lineWidth: 1) }
-            .help("会话 \(number)：\(state.label)")
-            .accessibilityLabel("会话 \(number)，\(state.label)")
+        HStack(spacing: 8) {
+            Label(
+                AppLanguage.text(
+                    chinese: "\(sessions.count) 个会话",
+                    english: "\(sessions.count) Sessions"
+                ),
+                systemImage: "rectangle.stack"
+            )
+            .foregroundStyle(.secondary)
+
+            if !summary.isEmpty {
+                Spacer(minLength: 6)
+
+                Text(summary)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .font(.caption)
+        .help(summary.isEmpty ? "\(sessions.count) 个会话" : summary)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(summary.isEmpty ? "\(sessions.count) 个会话" : "\(sessions.count) 个会话，\(summary)")
     }
 }

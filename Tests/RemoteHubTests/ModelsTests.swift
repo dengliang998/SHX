@@ -684,7 +684,11 @@ struct ModelsTests {
         }
         watcher.start()
         try Data("after with changes".utf8).write(to: file, options: .atomic)
-        let deadline = ContinuousClock.now + .seconds(2)
+        // Swift Testing runs independent cases concurrently, and several
+        // local Process/AppKit fixtures can briefly delay this MainActor
+        // watcher. Keep the assertion bounded without turning scheduler load
+        // into a false negative.
+        let deadline = ContinuousClock.now + .seconds(5)
         while syncAttempts < 2, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }

@@ -33,7 +33,6 @@ struct OpenConnectionSheet: View {
                     Label("新建服务器", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
                 .pointingHandCursor()
             }
             .padding(22)

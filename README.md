@@ -111,4 +111,4 @@ KiteShell is licensed under the [Apache License 2.0](LICENSE). Third-party compo
 
 ## Project status
 
-Version 1.1.3 adds a multi-column server grid, per-session state indicators, the restored remote-file list, and explicit result dialogs for manual update checks. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.
+Version 1.1.4 refines the multi-column connection center with stronger Apple-style card hierarchy, hover-revealed actions, semantic mixed-session summaries, and a stable responsive command-library header. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.

@@ -2,6 +2,14 @@
 
 All notable KiteShell changes are documented here. The first public release resets semantic versioning to 1.0.0. Earlier alpha builds remain summarized for historical context.
 
+## 1.1.4 — 2026-08-18
+
+- Strengthen connection-card contrast and hierarchy, keep identifying metadata on the leading side, and reveal trailing actions only while hovering.
+- Replace numbered session circles with a compact semantic summary that preserves mixed active states without surfacing unhelpful disconnected labels.
+- Stabilize the command-library header with separate navigation/statistics and search/action rows, fixed-width scope controls, and scope-appropriate counts and disabled actions.
+- Normalize non-semantic control colors around the application's accent color for a more restrained native macOS appearance.
+- Set the application version to 1.1.4 (Build 114).
+
 ## 1.1.3 — 2026-08-18
 
 - Use a responsive multi-column card grid in the connection center so multiple servers share each row without wasted space.

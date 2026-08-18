@@ -315,7 +315,6 @@ struct RemoteFilePanel: View {
             Image(systemName: "line.3.horizontal.decrease.circle")
         }
         .menuStyle(.borderlessButton)
-        .tint(.purple)
         .help("筛选、排序和隐藏文件")
 
         Menu {
@@ -330,7 +329,6 @@ struct RemoteFilePanel: View {
             Image(systemName: "plus")
         }
         .menuStyle(.borderlessButton)
-        .tint(.blue)
         .disabled(session.state != .connected || !hasLoadedDirectory)
         .help("上传或新建")
 
@@ -338,7 +336,6 @@ struct RemoteFilePanel: View {
             Image(systemName: "arrow.up")
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.indigo)
         .disabled(!canOpenParent)
         .help("上一级目录")
 
@@ -346,7 +343,6 @@ struct RemoteFilePanel: View {
             Image(systemName: "arrow.clockwise")
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.teal)
         .disabled(session.state != .connected)
         .help("刷新远程目录")
     }

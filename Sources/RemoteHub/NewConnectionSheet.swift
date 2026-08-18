@@ -300,19 +300,16 @@ struct NewConnectionSheet: View {
                 Spacer()
                 Button("取消", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                    .tint(.gray)
                 Button(existingProfile == nil ? "仅保存" : "保存修改") {
                     save(connectAfterSave: false)
                 }
                 .buttonStyle(.bordered)
-                .tint(.teal)
                 .disabled(!canSave)
                 Button(existingProfile == nil ? "保存并连接" : "保存并新建会话") {
                     save(connectAfterSave: true)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
                 .disabled(!canSave)
             }
             .controlSize(.regular)
