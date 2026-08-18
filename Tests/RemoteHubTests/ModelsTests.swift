@@ -695,6 +695,66 @@ struct ModelsTests {
     }
 
     @Test
+    func remoteEditSnapshotDetectsSameSizeContentChangeWithPreservedMetadata() throws {
+        let file = FileManager.default.temporaryDirectory
+            .appending(path: "kiteshell-snapshot-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try Data("before".utf8).write(to: file)
+        let originalDate = Date(timeIntervalSince1970: 1_700_000_000)
+        try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: file.path)
+        let before = try #require(RemoteFileSnapshot.read(from: file))
+
+        try Data("after!".utf8).write(to: file)
+        try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: file.path)
+        let after = try #require(RemoteFileSnapshot.read(from: file))
+
+        #expect(before.size == after.size)
+        #expect(before.modificationDate == after.modificationDate)
+        #expect(before.fileNumber == after.fileNumber)
+        #expect(before.contentSignature != after.contentSignature)
+        #expect(before != after)
+    }
+
+    @Test @MainActor
+    func remoteEditWatcherQueuesSaveThatArrivesDuringSync() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "kiteshell-edit-queue-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let file = directory.appending(path: "config.txt")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("initial".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        var syncAttempts = 0
+        let watcher = RemoteFileEditWatcher(
+            localURL: file,
+            pollInterval: .milliseconds(15),
+            settleDelay: 0.02,
+            retryDelay: 0.03
+        ) {
+            syncAttempts += 1
+            if syncAttempts == 1 {
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+            return true
+        }
+        watcher.start()
+        try Data("first save".utf8).write(to: file, options: .atomic)
+        let firstDeadline = ContinuousClock.now + .seconds(1)
+        while syncAttempts < 1, ContinuousClock.now < firstDeadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try Data("second save during upload".utf8).write(to: file, options: .atomic)
+
+        let deadline = ContinuousClock.now + .seconds(2)
+        while syncAttempts < 2, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        watcher.stop()
+
+        #expect(syncAttempts >= 2)
+    }
+
+    @Test
     func uploadBatchReportsPerFileAndOverallProgress() {
         let urls = [URL(fileURLWithPath: "/tmp/one.bin"), URL(fileURLWithPath: "/tmp/two.bin")]
         var batch = UploadBatchProgress(urls: urls)

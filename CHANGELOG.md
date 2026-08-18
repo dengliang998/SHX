@@ -2,6 +2,14 @@
 
 All notable KiteShell changes are documented here. The first public release resets semantic versioning to 1.0.0. Earlier alpha builds remain summarized for historical context.
 
+## 1.1.2 — 2026-08-18
+
+- Replace the remote-file table with a responsive card grid that uses the available workspace width.
+- Make external remote-file edit syncing robust across fast saves and atomic file replacement.
+- Report real bytes written for regular-file uploads, fixing large uploads that appeared stalled before jumping to completion.
+- Standardize blur behavior: searches simply resign focus, remote paths revert unless confirmed with Return, and inline renames or built-in edits save on blur.
+- Set the application version to 1.1.2 (Build 112).
+
 ## 1.1.1 — 2026-08-11
 
 - Add native macOS/BSD remote monitoring support and tolerate partially unavailable metrics without breaking the inspector layout.

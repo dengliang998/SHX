@@ -4,6 +4,7 @@ struct RemoteFileSnapshot: Equatable, Sendable {
     let size: UInt64
     let modificationDate: Date
     let fileNumber: UInt64
+    let contentSignature: UInt64
 
     static func read(from url: URL) -> RemoteFileSnapshot? {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
@@ -13,8 +14,38 @@ struct RemoteFileSnapshot: Equatable, Sendable {
         return RemoteFileSnapshot(
             size: (attributes[.size] as? NSNumber)?.uint64Value ?? 0,
             modificationDate: modificationDate,
-            fileNumber: (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
+            fileNumber: (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0,
+            contentSignature: contentSignature(for: url)
         )
+    }
+
+    /// Editors may preserve both size and timestamps, or replace a file so
+    /// quickly that metadata alone does not expose the change. Hashing small
+    /// files completely and sampling large files makes save detection robust
+    /// without repeatedly reading a large remote-edit cache file in full.
+    private static func contentSignature(for url: URL) -> UInt64 {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
+        defer { try? handle.close() }
+
+        let size = (try? handle.seekToEnd()) ?? 0
+        var data = Data()
+        if size <= 256 * 1_024 {
+            try? handle.seek(toOffset: 0)
+            data = (try? handle.readToEnd()) ?? Data()
+        } else {
+            try? handle.seek(toOffset: 0)
+            data.append((try? handle.read(upToCount: 64 * 1_024)) ?? Data())
+            try? handle.seek(toOffset: max(0, size / 2 - 32 * 1_024))
+            data.append((try? handle.read(upToCount: 64 * 1_024)) ?? Data())
+            try? handle.seek(toOffset: size - 64 * 1_024)
+            data.append((try? handle.read(upToCount: 64 * 1_024)) ?? Data())
+        }
+
+        // Stable FNV-1a is sufficient here: this is change detection, not a
+        // security boundary.
+        return data.reduce(14_695_981_039_346_656_037) { hash, byte in
+            (hash ^ UInt64(byte)) &* 1_099_511_628_211
+        }
     }
 }
 
@@ -72,8 +103,18 @@ final class RemoteFileEditWatcher {
                     continue
                 }
 
+                let snapshotBeingSynced = lastSnapshot
                 if await syncAction() {
-                    needsSync = false
+                    let afterSync = RemoteFileSnapshot.read(from: localURL)
+                    lastSnapshot = afterSync
+                    if afterSync != snapshotBeingSynced {
+                        // A second save landed while the first upload was in
+                        // flight. Keep it pending instead of losing it.
+                        needsSync = afterSync != nil
+                        nextSyncAttempt = Date().addingTimeInterval(settleDelay)
+                    } else {
+                        needsSync = false
+                    }
                 } else {
                     nextSyncAttempt = Date().addingTimeInterval(retryDelay)
                 }

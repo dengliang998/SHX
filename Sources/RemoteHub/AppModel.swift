@@ -1193,33 +1193,44 @@ final class AppModel: ObservableObject {
                     $0.startedAt = Date()
                 }
 
-                let progressTask = Task { @MainActor [weak self] in
-                    while !Task.isCancelled {
-                        guard let self,
-                              terminalControllers[sessionID]?.id == controllerID,
-                              fileTransferIDs[sessionID] == operationID else { return }
-                        if let output = try? await SSHCommandRunner.run(
-                            context: controller.remoteCommandContext,
-                            command: RemoteFileService.transferSizeCommand(
-                                path: remotePath,
-                                isDirectory: metrics.isDirectory
-                            )
-                        ), let bytes = Int64(output.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                            updateUploadItem(
+                var progressTask: Task<Void, Never>?
+                if metrics.isDirectory {
+                    progressTask = Task { @MainActor [weak self] in
+                        while !Task.isCancelled {
+                            guard let self,
+                                  terminalControllers[sessionID]?.id == controllerID,
+                                  fileTransferIDs[sessionID] == operationID else { return }
+                            if let output = try? await SSHCommandRunner.run(
+                                context: controller.remoteCommandContext,
+                                command: RemoteFileService.transferSizeCommand(path: remotePath, isDirectory: true)
+                            ), let bytes = Int64(output.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                                updateUploadProgress(
+                                    bytes: bytes,
+                                    totalBytes: metrics.totalBytes,
+                                    sessionID: sessionID,
+                                    batchID: operationID,
+                                    index: index
+                                )
+                            }
+                            try? await Task.sleep(for: .milliseconds(350))
+                        }
+                    }
+                }
+
+                let progressHandler: (@Sendable (Int64) -> Void)?
+                if metrics.isDirectory {
+                    progressHandler = nil
+                } else {
+                    progressHandler = { [weak self] bytes in
+                        Task { @MainActor [weak self] in
+                            self?.updateUploadProgress(
+                                bytes: bytes,
+                                totalBytes: metrics.totalBytes,
                                 sessionID: sessionID,
                                 batchID: operationID,
                                 index: index
-                            ) {
-                                $0.transferredBytes = metrics.totalBytes > 0
-                                    ? min(max(0, bytes), metrics.totalBytes)
-                                    : max(0, bytes)
-                                if let startedAt = $0.startedAt {
-                                    let elapsed = max(0.1, Date().timeIntervalSince(startedAt))
-                                    $0.bytesPerSecond = Double($0.transferredBytes) / elapsed
-                                }
-                            }
+                            )
                         }
-                        try? await Task.sleep(for: .milliseconds(350))
                     }
                 }
 
@@ -1228,9 +1239,10 @@ final class AppModel: ObservableObject {
                         localURL: url,
                         remotePath: remotePath,
                         context: controller.remoteCommandContext,
-                        control: transferControl
+                        control: transferControl,
+                        progress: progressHandler
                     )
-                    progressTask.cancel()
+                    progressTask?.cancel()
                     guard !Task.isCancelled else { return }
                     updateUploadItem(sessionID: sessionID, batchID: operationID, index: index) {
                         $0.transferredBytes = metrics.totalBytes
@@ -1241,13 +1253,13 @@ final class AppModel: ObservableObject {
                         $0.status = .completed
                     }
                 } catch is CancellationError {
-                    progressTask.cancel()
+                    progressTask?.cancel()
                     if fileTransferIDs[sessionID] == operationID {
                         markUnfinishedUploadItemsCancelled(sessionID: sessionID, batchID: operationID)
                     }
                     return
                 } catch {
-                    progressTask.cancel()
+                    progressTask?.cancel()
                     failureCount += 1
                     updateUploadItem(sessionID: sessionID, batchID: operationID, index: index) {
                         $0.status = .failed(error.localizedDescription)
@@ -1409,6 +1421,10 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 defer { remoteEditPreparationTasks[key] = nil }
                 do {
+                    let remoteVersion = try? await SSHCommandRunner.run(
+                        context: controller.remoteCommandContext,
+                        command: RemoteFileService.versionCommand(path: remotePath)
+                    ).trimmingCharacters(in: .whitespacesAndNewlines)
                     try await SFTPTransferService.download(
                         remotePath: remotePath,
                         localURL: localURL,
@@ -1418,10 +1434,6 @@ final class AppModel: ObservableObject {
                           sessions.first(where: { $0.id == sessionID })?.state == .connected,
                           !Task.isCancelled else { return }
 
-                    guard NSWorkspace.shared.open(localURL) else {
-                        throw RemoteCommandError.launchFailed("macOS 没有找到可打开 \(entry.name) 的应用")
-                    }
-
                     let watcher = RemoteFileEditWatcher(localURL: localURL) { [weak self] in
                         guard let self else { return true }
                         return await self.syncEditedRemoteFile(
@@ -1430,16 +1442,19 @@ final class AppModel: ObservableObject {
                             fileName: entry.name
                         )
                     }
-                    let remoteVersion = try? await SSHCommandRunner.run(
-                        context: controller.remoteCommandContext,
-                        command: RemoteFileService.versionCommand(path: remotePath)
-                    ).trimmingCharacters(in: .whitespacesAndNewlines)
                     remoteEditHandles[key] = RemoteEditHandle(
                         localURL: localURL,
                         watcher: watcher,
                         remoteVersion: remoteVersion?.isEmpty == false ? remoteVersion : nil
                     )
                     watcher.start()
+
+                    guard NSWorkspace.shared.open(localURL) else {
+                        watcher.stop()
+                        remoteEditHandles[key] = nil
+                        throw RemoteCommandError.launchFailed("macOS 没有找到可打开 \(entry.name) 的应用")
+                    }
+
                     setRemoteEditActivity(
                         "正在编辑 \(entry.name) · 保存后自动同步",
                         for: sessionID,
@@ -1917,6 +1932,24 @@ final class AppModel: ObservableObject {
               batch.items.indices.contains(index) else { return }
         update(&batch.items[index])
         uploadBatches[sessionID] = batch
+    }
+
+    private func updateUploadProgress(
+        bytes: Int64,
+        totalBytes: Int64,
+        sessionID: UUID,
+        batchID: UUID,
+        index: Int
+    ) {
+        updateUploadItem(sessionID: sessionID, batchID: batchID, index: index) {
+            $0.transferredBytes = totalBytes > 0
+                ? min(max(0, bytes), totalBytes)
+                : max(0, bytes)
+            if let startedAt = $0.startedAt {
+                let elapsed = max(0.1, Date().timeIntervalSince(startedAt))
+                $0.bytesPerSecond = Double($0.transferredBytes) / elapsed
+            }
+        }
     }
 
     private func markUnfinishedUploadItemsCancelled(sessionID: UUID, batchID: UUID) {

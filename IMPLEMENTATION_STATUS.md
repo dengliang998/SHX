@@ -1,12 +1,12 @@
 # KiteShell implementation and release status
 
-Document version: 1.1
+Document version: 1.2
 
-Updated: 2026-08-11
+Updated: 2026-08-18
 
-Release baseline: **KiteShell 1.1.1 (Build 111)**
+Release baseline: **KiteShell 1.1.2 (Build 112)**
 
-KiteShell 1.1.1 extends the complete local product path to macOS/BSD remote hosts, portable directory metadata, partial-monitor degradation, inline remote-file renaming, and standard clipboard routing in file fields.
+KiteShell 1.1.2 extends the complete local product path with responsive remote-file cards, reliable external-edit syncing, real large-upload progress, and context-aware text-field blur behavior.
 
 ## Verified
 
@@ -23,7 +23,7 @@ KiteShell 1.1.1 extends the complete local product path to macOS/BSD remote host
 
 ## Distribution boundary
 
-The 1.1.1 community build is suitable for source and direct GitHub distribution, but it is **not Apple-notarized**. Seamless public Gatekeeper distribution still requires an Apple Developer team, a Developer ID Application certificate, Hardened Runtime configuration, and notarization.
+The 1.1.2 community build is suitable for source and direct GitHub distribution, but it is **not Apple-notarized**. Seamless public Gatekeeper distribution still requires an Apple Developer team, a Developer ID Application certificate, Hardened Runtime configuration, and notarization.
 
 The local credential vault protects against plaintext disclosure and other macOS users through file permissions. Because the key and ciphertext belong to the same signed-in macOS user, it does not provide Keychain or Secure Enclave-level protection against compromise of that account.
 

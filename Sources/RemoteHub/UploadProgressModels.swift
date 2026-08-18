@@ -85,7 +85,7 @@ struct UploadBatchProgress: Identifiable, Sendable, Equatable {
             case .waiting, .preparing:
                 partial
             case .uploading, .paused:
-                partial + (item.fractionCompleted ?? 0.08)
+                partial + (item.fractionCompleted ?? 0)
             }
         }
         return min(1, max(0, sum / Double(items.count)))

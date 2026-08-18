@@ -15,15 +15,15 @@
     <key>CFBundleDisplayName</key>
     <string>KiteShell</string>
     <key>CFBundleIconFile</key>
-	<string>KiteShell-1.1.1.icns</string>
+	<string>KiteShell-1.1.2.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-	<string>1.1.1</string>
+	<string>1.1.2</string>
     <key>KiteShellReleaseLabel</key>
-    <string>1.1.1</string>
+    <string>1.1.2</string>
     <key>CFBundleVersion</key>
-    <string>111</string>
+    <string>112</string>
     <key>KiteShellSigningType</key>
     <string>Local development signature (not notarized)</string>
     <key>KiteShellUpdatePublicKey</key>

@@ -23,6 +23,11 @@ enum RemoteTextEditorError: LocalizedError {
 }
 
 struct RemoteTextEditorSheet: View {
+    private enum FocusedField: Hashable {
+        case search
+        case editor
+    }
+
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let session: Session
@@ -35,6 +40,7 @@ struct RemoteTextEditorSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var hasChanges = false
+    @FocusState private var focusedField: FocusedField?
 
     private var matchCount: Int {
         guard !searchText.isEmpty else { return 0 }
@@ -53,6 +59,7 @@ struct RemoteTextEditorSheet: View {
                 TextField("查找", text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 180)
+                    .focused($focusedField, equals: .search)
                 if !searchText.isEmpty {
                     Text("\(matchCount) 处").font(.caption).foregroundStyle(.secondary)
                 }
@@ -84,6 +91,7 @@ struct RemoteTextEditorSheet: View {
             } else {
                 TextEditor(text: $text)
                     .font(.body.monospaced())
+                    .focused($focusedField, equals: .editor)
                     .scrollContentBackground(.hidden)
                     .padding(10)
                     .background(Color(nsColor: .textBackgroundColor))
@@ -99,6 +107,19 @@ struct RemoteTextEditorSheet: View {
         }
         .frame(minWidth: 760, minHeight: 560)
         .task { await load() }
+        .onChange(of: focusedField) { previous, current in
+            if previous == .editor, current != .editor, hasChanges {
+                save()
+            }
+        }
+        .onChange(of: usesCRLF) { _, _ in
+            if !isLoading {
+                hasChanges = true
+                if focusedField != .editor {
+                    save()
+                }
+            }
+        }
     }
 
     private func load() async {
@@ -115,22 +136,32 @@ struct RemoteTextEditorSheet: View {
     }
 
     private func save() {
+        guard !isLoading, !isSaving, hasChanges else { return }
+        let contentToSave = normalizedContent
         isSaving = true
         errorMessage = nil
         Task {
+            var saved = false
             do {
-                let normalized = usesCRLF ? text.replacingOccurrences(of: "\n", with: "\r\n") : text
                 remoteVersion = try await model.saveRemoteTextFile(
-                    normalized,
+                    contentToSave,
                     entry: entry,
                     expectedVersion: remoteVersion,
                     in: session.id
                 )
-                hasChanges = false
+                hasChanges = normalizedContent != contentToSave
+                saved = true
             } catch {
                 errorMessage = error.localizedDescription
             }
             isSaving = false
+            if saved, hasChanges, focusedField != .editor {
+                save()
+            }
         }
+    }
+
+    private var normalizedContent: String {
+        usesCRLF ? text.replacingOccurrences(of: "\n", with: "\r\n") : text
     }
 }

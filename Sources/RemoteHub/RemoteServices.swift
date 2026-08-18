@@ -167,16 +167,108 @@ enum SFTPTransferService {
         localURL: URL,
         remotePath: String,
         context: RemoteCommandContext,
-        control: TransferProcessControl? = nil
+        control: TransferProcessControl? = nil,
+        progress: (@Sendable (Int64) -> Void)? = nil
     ) async throws {
         var isDirectory: ObjCBool = false
         _ = FileManager.default.fileExists(atPath: localURL.path, isDirectory: &isDirectory)
-        let action = isDirectory.boolValue ? "put -rp" : "put -p"
+        if !isDirectory.boolValue {
+            try await uploadRegularFile(
+                localURL: localURL,
+                remotePath: remotePath,
+                context: context,
+                control: control,
+                progress: progress
+            )
+            return
+        }
         try await run(
             context: context,
-            batchCommand: "\(action) \(batchQuote(localURL.path)) \(batchQuote(remotePath))",
+            batchCommand: "put -rp \(batchQuote(localURL.path)) \(batchQuote(remotePath))",
             control: control
         )
+    }
+
+    private static func uploadRegularFile(
+        localURL: URL,
+        remotePath: String,
+        context: RemoteCommandContext,
+        control: TransferProcessControl?,
+        progress: (@Sendable (Int64) -> Void)?
+    ) async throws {
+        let terminationBox = control ?? TransferProcessControl()
+        try await withTaskCancellationHandler {
+            try await Task.detached(priority: .utility) {
+                let process = Process()
+                let input = Pipe()
+                let output = Pipe()
+                let error = Pipe()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+                process.arguments = [
+                    "-T",
+                    "-S", context.controlSocketPath,
+                    "-o", "ControlMaster=no",
+                    "-o", "BatchMode=yes",
+                    "-p", String(context.port),
+                    "--", context.destination,
+                    "cat > \(RemoteFileService.shellQuote(remotePath))"
+                ]
+                process.standardInput = input
+                process.standardOutput = output
+                process.standardError = error
+
+                terminationBox.attach(process)
+                defer { terminationBox.detach() }
+                guard !terminationBox.isCancelled else { throw CancellationError() }
+
+                do {
+                    try process.run()
+                } catch {
+                    if terminationBox.isCancelled { throw CancellationError() }
+                    throw RemoteCommandError.launchFailed(error.localizedDescription)
+                }
+
+                do {
+                    let source = try FileHandle(forReadingFrom: localURL)
+                    defer { try? source.close() }
+                    var transferred: Int64 = 0
+                    var lastReport = ContinuousClock.now
+                    progress?(0)
+                    while !terminationBox.isCancelled {
+                        let chunk = try source.read(upToCount: 512 * 1_024) ?? Data()
+                        if chunk.isEmpty { break }
+                        try input.fileHandleForWriting.write(contentsOf: chunk)
+                        transferred += Int64(chunk.count)
+                        let now = ContinuousClock.now
+                        if now - lastReport >= .milliseconds(100) {
+                            progress?(transferred)
+                            lastReport = now
+                        }
+                    }
+                    if terminationBox.isCancelled { throw CancellationError() }
+                    progress?(transferred)
+                    try input.fileHandleForWriting.close()
+                } catch {
+                    try? input.fileHandleForWriting.close()
+                    if terminationBox.isCancelled { throw CancellationError() }
+                    process.terminate()
+                    throw error
+                }
+
+                process.waitUntilExit()
+                if terminationBox.isCancelled { throw CancellationError() }
+                let standardError = String(
+                    decoding: error.fileHandleForReading.readDataToEndOfFile(),
+                    as: UTF8.self
+                ).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard process.terminationStatus == 0 else {
+                    throw RemoteCommandError.commandFailed(standardError)
+                }
+            }.value
+            try Task.checkCancellation()
+        } onCancel: {
+            terminationBox.cancel()
+        }
     }
 
     static func download(

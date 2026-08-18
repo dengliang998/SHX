@@ -39,6 +39,7 @@ struct RemoteFilePanel: View {
     @State private var renamingEntryID: String?
     @State private var renameDraft = ""
     @FocusState private var isPathFocused: Bool
+    @FocusState private var isSearchFocused: Bool
     @FocusState private var focusedRenameEntryID: String?
 
     private var state: RemoteDirectoryState {
@@ -198,6 +199,15 @@ struct RemoteFilePanel: View {
         .onChange(of: currentDirectory) { _, newPath in
             if let newPath { recordHistory(newPath) }
         }
+        .onChange(of: isPathFocused) { _, focused in
+            if !focused, isEditingPath { cancelPathEditing() }
+        }
+        .onChange(of: focusedRenameEntryID) { previous, current in
+            guard let previous,
+                  current != previous,
+                  renamingEntryID == previous else { return }
+            commitInlineRename()
+        }
     }
 
     private var panelToolbar: some View {
@@ -292,6 +302,7 @@ struct RemoteFilePanel: View {
         TextField("筛选文件", text: $searchText)
             .textFieldStyle(.roundedBorder)
             .frame(width: 125)
+            .focused($isSearchFocused)
         Menu {
             Picker("排序", selection: $sortOrder) {
                 ForEach(FileSortOrder.allCases) { order in
@@ -399,11 +410,14 @@ struct RemoteFilePanel: View {
                     description: Text(searchText.isEmpty ? listing.path : "尝试调整筛选内容或显示隐藏文件。")
                 )
             } else {
-                VStack(spacing: 0) {
-                    FileHeaderRow()
-                    Divider()
-                    List(entries) { entry in
-                        RemoteFileRow(
+                ScrollView {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 210, maximum: 330), spacing: 12)],
+                        alignment: .leading,
+                        spacing: 12
+                    ) {
+                        ForEach(entries) { entry in
+                            RemoteFileCard(
                             entry: entry,
                             open: {
                                 if entry.isDirectory {
@@ -417,8 +431,8 @@ struct RemoteFilePanel: View {
                             renameFocus: $focusedRenameEntryID,
                             commitRename: commitInlineRename,
                             cancelRename: cancelInlineRename
-                        )
-                        .contextMenu {
+                            )
+                            .contextMenu {
                             if entry.isDirectory {
                                 Button {
                                     model.openRemoteDirectory(for: session.id, entry: entry)
@@ -524,10 +538,12 @@ struct RemoteFilePanel: View {
                             } label: {
                                 Label("删除…", systemImage: "trash")
                             }
+                            }
                         }
                     }
-                    .listStyle(.inset)
+                    .padding(14)
                 }
+                .background(Color(nsColor: .windowBackgroundColor))
             }
         }
     }
@@ -621,6 +637,11 @@ struct RemoteFilePanel: View {
         isPathFocused = false
         isEditingPath = false
         clearTextFocus()
+    }
+
+    private func cancelPathEditing() {
+        pathDraft = currentDirectory ?? ""
+        isEditingPath = false
     }
 
     private func openDraftPath() {
@@ -724,9 +745,9 @@ struct RemoteFilePanel: View {
     }
 
     private func cancelInlineRename() {
-        focusedRenameEntryID = nil
         renamingEntryID = nil
         renameDraft = ""
+        focusedRenameEntryID = nil
     }
 }
 
@@ -852,28 +873,7 @@ private struct RemoteNameSheet: View {
     }
 }
 
-private struct FileHeaderRow: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            Text("名称")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("大小")
-                .frame(width: 90, alignment: .trailing)
-            Text("修改时间")
-                .frame(width: 128, alignment: .leading)
-            Text("权限")
-                .frame(width: 70, alignment: .leading)
-            Text("所有者")
-                .frame(width: 90, alignment: .leading)
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 20)
-        .frame(height: 28)
-    }
-}
-
-private struct RemoteFileRow: View {
+private struct RemoteFileCard: View {
     let entry: RemoteFileEntry
     let open: () -> Void
     let isRenaming: Bool
@@ -881,62 +881,81 @@ private struct RemoteFileRow: View {
     let renameFocus: FocusState<String?>.Binding
     let commitRename: () -> Void
     let cancelRename: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: entry.isDirectory ? "folder.fill" : "doc")
-                    .foregroundStyle(entry.isDirectory ? Color.accentColor : Color.secondary)
-                    .frame(width: 16)
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .top, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(entry.isDirectory ? Color.accentColor.opacity(0.13) : Color.secondary.opacity(0.10))
+                    Image(systemName: entry.isDirectory ? "folder.fill" : "doc.fill")
+                        .font(.title3)
+                        .foregroundStyle(entry.isDirectory ? Color.accentColor : Color.secondary)
+                }
+                .frame(width: 38, height: 38)
+
+                VStack(alignment: .leading, spacing: 5) {
                 if isRenaming {
-                    TextField("名称", text: $renameText)
-                        .textFieldStyle(.roundedBorder)
-                        .focused(renameFocus, equals: entry.id)
-                        .onSubmit(commitRename)
-                        .onExitCommand(perform: cancelRename)
-                    Button(action: commitRename) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
-                    .buttonStyle(.plain)
-                    .help("保存名称")
-                    Button(action: cancelRename) {
-                        Image(systemName: "xmark.circle")
+                    VStack(alignment: .leading, spacing: 3) {
+                        TextField("名称", text: $renameText)
+                            .textFieldStyle(.roundedBorder)
+                            .focused(renameFocus, equals: entry.id)
+                            .onSubmit(commitRename)
+                            .onExitCommand(perform: cancelRename)
+                        Text("回车或点击空白处保存，Esc 取消")
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .help("取消重命名")
                 } else {
                     Text(entry.name)
+                        .font(.callout.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    Text(entry.isDirectory ? "文件夹" : fileTypeLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(entry.isDirectory ? "—" : formattedSize)
-                .frame(width: 90, alignment: .trailing)
-            Text(entry.modifiedAt)
-                .frame(width: 128, alignment: .leading)
-            Text(entry.permissions)
-                .font(.caption.monospaced())
-                .frame(width: 70, alignment: .leading)
-            Text(entry.owner)
-                .frame(width: 90, alignment: .leading)
-
-            if entry.isDirectory {
-                Button(action: open) {
+                if entry.isDirectory, !isRenaming {
                     Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 6)
                 }
-                .buttonStyle(.plain)
-                .help("打开 \(entry.name)")
-                .pointingHandCursor()
-            } else {
-                Color.clear.frame(width: 12)
             }
+
+            HStack(spacing: 7) {
+                Label(entry.isDirectory ? "—" : formattedSize, systemImage: "internaldrive")
+                Spacer(minLength: 4)
+                Text(entry.permissions)
+                    .font(.caption.monospaced())
+                Text(entry.owner)
+                    .lineLimit(1)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Label(entry.modifiedAt, systemImage: "clock")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
         }
-        .font(.callout)
-        .contentShape(Rectangle())
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 122, alignment: .topLeading)
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isHovering ? Color.primary.opacity(0.065) : Color(nsColor: .controlBackgroundColor))
+                .shadow(color: .black.opacity(isHovering ? 0.09 : 0.04), radius: isHovering ? 5 : 2, y: 1)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(isHovering ? 0.13 : 0.07), lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onHover { isHovering = $0 }
         .onTapGesture(count: 2) {
             if !isRenaming { open() }
         }
@@ -945,7 +964,12 @@ private struct RemoteFileRow: View {
                 ? "双击打开文件夹"
                 : "双击下载并使用本地应用打开；保存后自动同步到服务器"
         )
-        .pointingHandCursor()
+        .pointingHandCursor(!isRenaming)
+    }
+
+    private var fileTypeLabel: String {
+        let fileExtension = URL(fileURLWithPath: entry.name).pathExtension
+        return fileExtension.isEmpty ? "文件" : "\(fileExtension.uppercased()) 文件"
     }
 
     private var formattedSize: String {

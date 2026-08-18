@@ -13,6 +13,7 @@ struct RootView: View {
                 WorkspaceView()
             }
         }
+        .dismissesTextFocusOnOutsideClick()
         .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: model.route)
         .sheet(isPresented: $model.isPresentingNewConnection) {
             NewConnectionSheet()
