@@ -118,10 +118,6 @@ struct ConnectionCenterView: View {
         case .created:
             return searched.sorted { $0.createdAt > $1.createdAt }
         case .state:
-            let activeStates = Dictionary(
-                model.sessions.map { ($0.profile.id, $0.state) },
-                uniquingKeysWith: { first, _ in first }
-            )
             func rank(_ state: ConnectionState?) -> Int {
                 switch state {
                 case .connected: 0
@@ -131,8 +127,14 @@ struct ConnectionCenterView: View {
                 }
             }
             return searched.sorted { lhs, rhs in
-                let leftRank = rank(activeStates[lhs.id])
-                let rightRank = rank(activeStates[rhs.id])
+                let leftRank = model.sessions
+                    .filter { $0.profile.id == lhs.id }
+                    .map { rank($0.state) }
+                    .min() ?? rank(nil)
+                let rightRank = model.sessions
+                    .filter { $0.profile.id == rhs.id }
+                    .map { rank($0.state) }
+                    .min() ?? rank(nil)
                 if leftRank != rightRank { return leftRank < rightRank }
                 return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
@@ -276,7 +278,11 @@ struct ConnectionCenterView: View {
                     }
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 10) {
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 270, maximum: 360), spacing: 14)],
+                            alignment: .leading,
+                            spacing: 14
+                        ) {
                             ForEach(visibleServers) { profile in
                                 ServerRow(
                                     profile: profile,
@@ -347,6 +353,7 @@ struct ConnectionCenterView: View {
                             }
                         }
                         .padding(.horizontal, 22)
+                        .padding(.top, 4)
                         .padding(.bottom, 22)
                     }
                     .background {
@@ -903,8 +910,10 @@ private struct ServerRow: View {
     let delete: () -> Void
     @State private var isHovering = false
 
-    private var activeState: ConnectionState? {
-        model.sessions.first(where: { $0.profile.id == profile.id })?.state
+    private var profileSessions: [Session] {
+        model.sessions
+            .filter { $0.profile.id == profile.id }
+            .sorted { $0.openedAt < $1.openedAt }
     }
 
     private var accent: Color {
@@ -914,146 +923,165 @@ private struct ServerRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 16) {
-            if isSelectionMode {
-                Button(action: toggleSelection) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 11) {
+                if isSelectionMode {
+                    Button(action: toggleSelection) {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isSelected ? "取消选择" : "选择")
                 }
-                .buttonStyle(.plain)
-                .help(isSelected ? "取消选择" : "选择")
-            }
 
-            Image(systemName: "server.rack")
-                .font(.title3.weight(.medium))
-                .foregroundStyle(accent)
-                .frame(width: 44, height: 44)
-                .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
-                .accessibilityHidden(true)
+                Image(systemName: "server.rack")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(accent)
+                    .frame(width: 42, height: 42)
+                    .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(profile.name)
                         .font(.body.weight(.medium))
-                    if profile.isFavorite {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                            .accessibilityLabel("已收藏")
-                    }
-                    if let activeState {
-                        ConnectionStatusPill(state: activeState)
-                    }
+                        .lineLimit(1)
+                    Text(profile.displayAddress)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-                Text(profile.displayAddress)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 7) {
-                    Label(ConnectionOrganization.displayName(forGroup: profile.group), systemImage: "folder")
-                    Label {
-                        Text(LocalizedStringKey(profile.authentication.rawValue))
-                    } icon: {
-                        Image(systemName: "key")
-                    }
-                    if !profile.quickCommands.isEmpty {
-                        Label(
-                            AppLanguage.text(
-                                chinese: "\(profile.quickCommands.count) 个命令",
-                                english: "\(profile.quickCommands.count) Commands"
-                            ),
-                            systemImage: "bolt"
-                        )
-                    }
+                Spacer(minLength: 4)
+                if profile.isFavorite {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                        .accessibilityLabel("已收藏")
                 }
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                if !profile.tags.isEmpty {
-                    HStack(spacing: 5) {
-                        ForEach(profile.tags.prefix(4), id: \.self) { tag in
-                            Text(ConnectionOrganization.displayName(forTag: tag))
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.tint.opacity(0.10), in: Capsule())
-                        }
-                        if profile.tags.count > 4 {
-                            Text("+\(profile.tags.count - 4)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+            }
+
+            HStack(spacing: 8) {
+                Label(ConnectionOrganization.displayName(forGroup: profile.group), systemImage: "folder")
+                    .lineLimit(1)
+                Label {
+                    Text(LocalizedStringKey(profile.authentication.rawValue))
+                } icon: {
+                    Image(systemName: "key")
+                }
+                if !profile.quickCommands.isEmpty {
+                    Label("\(profile.quickCommands.count)", systemImage: "bolt")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+
+            if !profile.tags.isEmpty {
+                HStack(spacing: 5) {
+                    ForEach(profile.tags.prefix(3), id: \.self) { tag in
+                        Text(ConnectionOrganization.displayName(forTag: tag))
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.tint.opacity(0.10), in: Capsule())
+                    }
+                    if profile.tags.count > 3 {
+                        Text("+\(profile.tags.count - 3)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            Spacer()
+            if !profileSessions.isEmpty {
+                Divider()
+                HStack(spacing: 7) {
+                    Label(
+                        AppLanguage.text(
+                            chinese: "\(profileSessions.count) 个会话",
+                            english: "\(profileSessions.count) Sessions"
+                        ),
+                        systemImage: "rectangle.stack"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    ForEach(Array(profileSessions.enumerated()), id: \.element.id) { index, session in
+                        SessionStateIndicator(number: index + 1, state: session.state)
+                    }
+                }
+            }
 
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("最近连接")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            Spacer(minLength: 0)
+
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
                 Text(profile.lastConnectedAt.map {
                     $0.formatted(
                         .relative(presentation: .named)
                             .locale(AppLanguage.current.locale)
                     )
                 } ?? AppLanguage.text(chinese: "从未连接", english: "Never Connected"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
-
-            if !isSelectionMode && !profile.quickCommands.isEmpty {
-                Menu {
-                    ForEach(profile.quickCommands) { quickCommand in
-                        Button {
-                            model.requestRunQuickCommand(quickCommand, for: profile)
-                        } label: {
-                            Label(quickCommand.name, systemImage: "play.fill")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "bolt.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .help("连接并执行快捷命令")
-            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
             if !isSelectionMode {
-                Button("连接", action: connect)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .pointingHandCursor()
+                HStack(spacing: 8) {
+                    if !profile.quickCommands.isEmpty {
+                        Menu {
+                            ForEach(profile.quickCommands) { quickCommand in
+                                Button {
+                                    model.requestRunQuickCommand(quickCommand, for: profile)
+                                } label: {
+                                    Label(quickCommand.name, systemImage: "play.fill")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "bolt.circle")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .help("连接并执行快捷命令")
+                    }
+                    Spacer()
+                    Button("连接", action: connect)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .pointingHandCursor()
 
-                Menu {
-                Button("编辑…", action: edit)
-                Button("复制连接") { model.duplicateServer(profile) }
-                Button("连接诊断…", action: diagnose)
-                Button(profile.isFavorite ? "取消收藏" : "收藏") {
-                    model.toggleFavorite(profile)
-                }
-                if profile.authentication == .password {
-                    Button("忘记已保存密码") {
-                        model.forgetPassword(for: profile)
+                    Menu {
+                        Button("编辑…", action: edit)
+                        Button("复制连接") { model.duplicateServer(profile) }
+                        Button("连接诊断…", action: diagnose)
+                        Button(profile.isFavorite ? "取消收藏" : "收藏") {
+                            model.toggleFavorite(profile)
+                        }
+                        if profile.authentication == .password {
+                            Button("忘记已保存密码") {
+                                model.forgetPassword(for: profile)
+                            }
+                        }
+                        if profile.authentication == .privateKey {
+                            Button("忘记已保存私钥口令") {
+                                model.forgetPrivateKeyPassphrase(for: profile)
+                            }
+                        }
+                        Divider()
+                        Button("删除…", role: .destructive, action: delete)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                    .help("更多操作")
+                    .pointingHandCursor()
                 }
-                if profile.authentication == .privateKey {
-                    Button("忘记已保存私钥口令") {
-                        model.forgetPrivateKeyPassphrase(for: profile)
-                    }
-                }
-                Divider()
-                Button("删除…", role: .destructive, action: delete)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .controlSize(.small)
-                .help("更多操作")
-                .pointingHandCursor()
             }
         }
-        .padding(.horizontal, 15)
-        .padding(.vertical, 13)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
         .background(
             Color(nsColor: .controlBackgroundColor)
                 .opacity(isHovering ? 1 : 0.78),
@@ -1073,20 +1101,18 @@ private struct ServerRow: View {
     }
 }
 
-private struct ConnectionStatusPill: View {
+private struct SessionStateIndicator: View {
+    let number: Int
     let state: ConnectionState
 
     var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(state.tint)
-                .frame(width: 6, height: 6)
-            Text(LocalizedStringKey(state.label))
-        }
-        .font(.caption2.weight(.medium))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(state.tint.opacity(0.10), in: Capsule())
+        Text("\(number)")
+            .font(.caption2.bold().monospacedDigit())
+            .foregroundStyle(state.tint)
+            .frame(width: 22, height: 22)
+            .background(state.tint.opacity(0.13), in: Circle())
+            .overlay { Circle().stroke(state.tint.opacity(0.45), lineWidth: 1) }
+            .help("会话 \(number)：\(state.label)")
+            .accessibilityLabel("会话 \(number)，\(state.label)")
     }
 }

@@ -2,6 +2,14 @@
 
 All notable KiteShell changes are documented here. The first public release resets semantic versioning to 1.0.0. Earlier alpha builds remain summarized for historical context.
 
+## 1.1.3 — 2026-08-18
+
+- Use a responsive multi-column card grid in the connection center so multiple servers share each row without wasted space.
+- Replace the misleading single server-status pill with individually numbered indicators for every session belonging to that server.
+- Restore the remote-file browser to a column-based list for name, size, modification time, permissions, and owner.
+- Always show a result dialog after a manual update check, with install and release-page choices when an update is available.
+- Set the application version to 1.1.3 (Build 113).
+
 ## 1.1.2 — 2026-08-18
 
 - Replace the remote-file table with a responsive card grid that uses the available workspace width.

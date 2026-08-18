@@ -111,4 +111,4 @@ KiteShell is licensed under the [Apache License 2.0](LICENSE). Third-party compo
 
 ## Project status
 
-Version 1.1.2 adds a responsive remote-file card grid, reliable external-edit syncing, real byte-based progress for large uploads, and context-aware blur behavior for search, path, rename, and file-edit fields. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.
+Version 1.1.3 adds a multi-column server grid, per-session state indicators, the restored remote-file list, and explicit result dialogs for manual update checks. Developer ID signing, Apple notarization, and a broader long-running platform matrix remain release-engineering work.

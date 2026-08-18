@@ -151,15 +151,20 @@ final class AppModel: ObservableObject {
                 case .upToDate:
                     availableSoftwareUpdate = nil
                     softwareUpdateState = silent ? .idle : .upToDate
+                    if !silent { presentUpToDateAlert() }
                 case .available(let update):
                     availableSoftwareUpdate = update
                     softwareUpdateState = .available(version: update.version)
+                    if !silent { presentAvailableUpdateAlert(update) }
                 }
             } catch is CancellationError {
                 if !silent { softwareUpdateState = .idle }
             } catch {
                 DiagnosticsCenter.record("update", "Update check failed: \(error.localizedDescription)")
-                if !silent { softwareUpdateState = .failed(error.localizedDescription) }
+                if !silent {
+                    softwareUpdateState = .failed(error.localizedDescription)
+                    presentUpdateFailureAlert(error)
+                }
             }
             softwareUpdateTask = nil
         }
@@ -188,6 +193,60 @@ final class AppModel: ObservableObject {
     func openAvailableSoftwareRelease() {
         guard let url = availableSoftwareUpdate?.releasePageURL else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func presentUpToDateAlert() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = AppLanguage.text(
+            chinese: "KiteShell 已是最新版本",
+            english: "KiteShell Is Up to Date"
+        )
+        alert.informativeText = AppLanguage.text(
+            chinese: "当前版本为 \(AppVersion.short)（Build \(AppVersion.build)），暂时没有可用更新。",
+            english: "Version \(AppVersion.short) (Build \(AppVersion.build)) is currently the latest release."
+        )
+        alert.addButton(withTitle: AppLanguage.text(chinese: "好", english: "OK"))
+        alert.runModal()
+    }
+
+    private func presentAvailableUpdateAlert(_ update: AvailableAppUpdate) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = AppLanguage.text(
+            chinese: "发现 KiteShell \(update.version)",
+            english: "KiteShell \(update.version) Is Available"
+        )
+        alert.informativeText = AppLanguage.text(
+            chinese: "当前版本为 \(AppVersion.short)（Build \(AppVersion.build)）。是否下载并安装新版本？",
+            english: "The current version is \(AppVersion.short) (Build \(AppVersion.build)). Download and install the update?"
+        )
+        alert.addButton(withTitle: AppLanguage.text(chinese: "下载并安装", english: "Download and Install"))
+        alert.addButton(withTitle: AppLanguage.text(chinese: "查看发布页面", english: "View Release"))
+        alert.addButton(withTitle: AppLanguage.text(chinese: "稍后", english: "Later"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            installAvailableSoftwareUpdate()
+        case .alertSecondButtonReturn:
+            NSWorkspace.shared.open(update.releasePageURL)
+        default:
+            break
+        }
+    }
+
+    private func presentUpdateFailureAlert(_ error: Error) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = AppLanguage.text(
+            chinese: "无法检查更新",
+            english: "Unable to Check for Updates"
+        )
+        alert.informativeText = error.localizedDescription
+        alert.addButton(withTitle: AppLanguage.text(chinese: "好", english: "OK"))
+        alert.runModal()
     }
 
     private func scheduleAutomaticUpdateCheck() {
