@@ -308,13 +308,6 @@ struct ModelsTests {
     }
 
     @Test
-    func finalShellPasswordDecoderMatchesJavaReference() {
-        let encoded = "eU15IxpjG1olIXZEeBsWK3AyLhO4+e3E8nqkLx+Sp77fvvwY0vmkcQ=="
-        #expect(FinalShellPasswordDecoder.decode(encoded) == "KiteShell-FinalShell-Test-2026!")
-        #expect(FinalShellPasswordDecoder.decode("not-base64") == nil)
-    }
-
-    @Test
     func semanticVersionsUseNumericOrdering() {
         #expect(SemanticVersion("1.0.1")! > SemanticVersion("1.0.0")!)
         #expect(SemanticVersion("v2.0.0")! > SemanticVersion("1.99.99")!)
@@ -557,28 +550,6 @@ struct ModelsTests {
         )
         #expect(legacy.executionMode == .confirm)
         #expect(legacy.tags.isEmpty)
-    }
-
-    @Test
-    func openSSHConfigImportExpandsAliasesAndIdentityFile() {
-        let payload = OpenSSHConfigImporter.parse(
-            """
-            Host production-api
-              HostName 10.0.0.12
-              User deploy
-              Port 2222
-              IdentityFile ~/.ssh/id_ed25519
-
-            Host *.internal
-              User root
-            """
-        )
-        #expect(payload.profiles.count == 1)
-        #expect(payload.profiles[0].name == "production-api")
-        #expect(payload.profiles[0].host == "10.0.0.12")
-        #expect(payload.profiles[0].port == 2222)
-        #expect(payload.profiles[0].authentication == .privateKey)
-        #expect(payload.profiles[0].identityFilePath.hasSuffix("/.ssh/id_ed25519"))
     }
 
     @Test

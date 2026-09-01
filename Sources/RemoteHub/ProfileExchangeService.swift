@@ -25,30 +25,6 @@ struct KiteShellConfigurationArchive: Codable, Sendable {
     }
 }
 
-struct KiteShellImportPayload: Sendable {
-    let profiles: [ServerProfile]
-    let groups: [String]
-    let globalCommands: [QuickCommand]
-    let skippedFiles: Int
-}
-
-enum ProfileExchangeError: LocalizedError {
-    case unsupportedArchive
-    case unsupportedSchema(Int)
-    case noProfiles
-
-    var errorDescription: String? {
-        switch self {
-        case .unsupportedArchive:
-            "这不是可识别的 SHX 配置文件。"
-        case .unsupportedSchema(let version):
-            "配置文件版本（\(version)）高于当前应用支持的版本。"
-        case .noProfiles:
-            "配置文件中没有可导入的连接。"
-        }
-    }
-}
-
 enum ProfileExchangeService {
     static func write(
         profiles: [ServerProfile],
@@ -63,50 +39,6 @@ enum ProfileExchangeService {
         try encoder.encode(archive).write(to: url, options: .atomic)
     }
 
-    static func load(urls: [URL]) async -> KiteShellImportPayload {
-        await Task.detached(priority: .utility) {
-            var profiles: [ServerProfile] = []
-            var groups: [String] = []
-            var globalCommands: [QuickCommand] = []
-            var skippedFiles = 0
-
-            for url in urls {
-                let accessed = url.startAccessingSecurityScopedResource()
-                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-                do {
-                    let data = try Data(contentsOf: url)
-                    let decoder = JSONDecoder()
-                    decoder.dateDecodingStrategy = .iso8601
-                    let archive = try decoder.decode(KiteShellConfigurationArchive.self, from: data)
-                    guard archive.product == "SHX" else {
-                        skippedFiles += 1
-                        continue
-                    }
-                    guard archive.schemaVersion <= KiteShellConfigurationArchive.currentSchemaVersion else {
-                        skippedFiles += 1
-                        continue
-                    }
-                    profiles.append(contentsOf: archive.profiles.map { profile in
-                        var imported = profile
-                        imported.identityFileBookmark = nil
-                        imported.updatedAt = Date()
-                        return imported
-                    })
-                    groups.append(contentsOf: archive.groups ?? [])
-                    globalCommands.append(contentsOf: archive.globalCommands ?? [])
-                } catch {
-                    skippedFiles += 1
-                }
-            }
-
-            return KiteShellImportPayload(
-                profiles: profiles,
-                groups: Array(Set(groups)).sorted(),
-                globalCommands: globalCommands,
-                skippedFiles: skippedFiles
-            )
-        }.value
-    }
 }
 
 struct ConnectionProbeResult: Sendable {

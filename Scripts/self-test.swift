@@ -10,13 +10,9 @@ struct KiteShellSelfTests {
         try testModelFormatting()
         try testMonitorParser()
         try testRemoteFileParserAndPaths()
-        try await testFinalShellImport()
-        if let externalFixture = CommandLine.arguments.dropFirst().first {
-            try await testExternalFinalShellImport(path: externalFixture)
-        }
         try testOneTimePasswordBroker()
         try testLocalCredentialVaultRoundTrip()
-        print("KiteShell self-tests: 6/6 passed")
+        print("SHX self-tests: 5/5 passed")
     }
 
     private static func require(
@@ -81,40 +77,6 @@ struct KiteShellSelfTests {
         try require(createCommand == "mkdir -- '/home/demo/a'\"'\"'b'", "新建目录命令转义错误")
         let deleteCommand = RemoteFileService.deleteCommand(parent: listing.path, entry: listing.entries[1])
         try require(deleteCommand == "rm -f -- '/home/demo/notes.txt'", "删除文件命令错误")
-    }
-
-    private static func testFinalShellImport() async throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kiteshell-import-\(UUID().uuidString).json")
-        let fixture: [String: Any] = [
-            "name": "Imported",
-            "host": "import.example.test",
-            "port": 2201,
-            "user_name": "deploy",
-            "conection_type": 100,
-            "authentication_type": 1,
-            "password": "eU15IxpjG1olIXZEeBsWK3AyLhO4+e3E8nqkLx+Sp77fvvwY0vmkcQ=="
-        ]
-        let nestedExport: [String: Any] = [
-            "groups": [["name": "Imported Group", "connections": [fixture]]]
-        ]
-        try JSONSerialization.data(withJSONObject: nestedExport).write(to: url, options: .atomic)
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let payload = await FinalShellImporter.load(urls: [url])
-        try require(payload.profiles.count == 1, "FinalShell 连接导入失败")
-        try require(payload.profiles[0].authentication == .password, "FinalShell 认证方式解析错误")
-        let importedProfile = payload.profiles[0]
-        try require(
-            payload.decodedPasswords[importedProfile.id] == "KiteShell-FinalShell-Test-2026!",
-            "FinalShell 加密密码解析错误"
-        )
-        try require(payload.failedCredentialCount == 0, "FinalShell 密码不应解析失败")
-    }
-
-    private static func testExternalFinalShellImport(path: String) async throws {
-        let payload = await FinalShellImporter.load(urls: [URL(fileURLWithPath: path)])
-        try require(!payload.profiles.isEmpty, "用户提供的 FinalShell 配置未解析到连接")
     }
 
     private static func testOneTimePasswordBroker() throws {

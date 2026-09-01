@@ -13,8 +13,6 @@ mkdir -p "$BUILD_DIR"
     "$ROOT_DIR/Sources/RemoteHub/AppLanguage.swift" \
     "$ROOT_DIR/Sources/RemoteHub/Models.swift" \
     "$ROOT_DIR/Sources/RemoteHub/RemoteServices.swift" \
-    "$ROOT_DIR/Sources/RemoteHub/FinalShellImporter.swift" \
-    "$ROOT_DIR/Sources/RemoteHub/FinalShellPasswordDecoder.swift" \
     "$ROOT_DIR/Sources/RemoteHub/LocalCredentialVault.swift" \
     "$ROOT_DIR/Sources/RemoteHub/OneTimePasswordBroker.swift" \
     "$ROOT_DIR/Scripts/self-test.swift" \

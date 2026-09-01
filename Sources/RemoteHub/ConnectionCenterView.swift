@@ -65,9 +65,6 @@ struct ConnectionCenterView: View {
     @EnvironmentObject private var model: AppModel
     @State private var filter: ConnectionFilter? = .all
     @State private var searchText = ""
-    @State private var isImportingFinalShell = false
-    @State private var isImportingKiteShell = false
-    @State private var isImportingOpenSSH = false
     @State private var sortOrder: ConnectionSortOrder = .recent
     @State private var editingProfile: ServerProfile?
     @State private var diagnosticProfile: ServerProfile?
@@ -232,9 +229,6 @@ struct ConnectionCenterView: View {
                     sortOrder: $sortOrder,
                     hasActiveSession: model.selectedSession != nil,
                     returnToSession: { model.showWorkspace() },
-                    importFinalShell: { isImportingFinalShell = true },
-                    importKiteShell: { isImportingKiteShell = true },
-                    importOpenSSH: { isImportingOpenSSH = true },
                     exportKiteShell: exportKiteShellConfiguration,
                     quickConnect: { model.isPresentingQuickConnect = true },
                     newConnection: { model.isPresentingNewConnection = true },
@@ -255,16 +249,10 @@ struct ConnectionCenterView: View {
                     } actions: {
                         VStack(spacing: 10) {
                             HStack {
-                            Button("新建连接") {
-                                model.isPresentingNewConnection = true
-                            }
-                            .buttonStyle(.borderedProminent)
-                            Button("导入 FinalShell") {
-                                isImportingFinalShell = true
-                            }
-                            .buttonStyle(.bordered)
-                            Button("导入 SHX") { isImportingKiteShell = true }
-                                .buttonStyle(.bordered)
+                                Button("新建连接") {
+                                    model.isPresentingNewConnection = true
+                                }
+                                .buttonStyle(.borderedProminent)
                             }
                             Button("打开使用说明") { isPresentingGettingStarted = true }
                         }
@@ -375,53 +363,6 @@ struct ConnectionCenterView: View {
             selectedProfileIDs.formIntersection(Set(model.servers.map(\.id)))
             if model.servers.isEmpty {
                 isSelectionMode = false
-            }
-        }
-        .fileImporter(
-            isPresented: $isImportingFinalShell,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case .success(let urls):
-                Task {
-                    await model.importFinalShellFiles(urls)
-                }
-            case .failure(let error):
-                model.importNotice = ImportNotice(
-                    title: "无法选择文件",
-                    message: error.localizedDescription
-                )
-            }
-        }
-        .fileImporter(
-            isPresented: $isImportingKiteShell,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case .success(let urls):
-                Task { await model.importKiteShellFiles(urls) }
-            case .failure(let error):
-                model.importNotice = ImportNotice(
-                    title: "无法选择文件",
-                    message: error.localizedDescription
-                )
-            }
-        }
-        .fileImporter(
-            isPresented: $isImportingOpenSSH,
-            allowedContentTypes: [.plainText, .data],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case .success(let urls):
-                Task { await model.importOpenSSHConfigFiles(urls) }
-            case .failure(let error):
-                model.importNotice = ImportNotice(
-                    title: "无法选择文件",
-                    message: error.localizedDescription
-                )
             }
         }
         .sheet(item: $editingProfile) { profile in
@@ -648,7 +589,7 @@ private struct GettingStartedSheet: View {
                     .keyboardShortcut(.cancelAction)
             }
             Divider()
-                    HelpStep(number: 1, title: "添加连接", detail: "新建连接，或导入 FinalShell、SHX 与 ~/.ssh/config。")
+                    HelpStep(number: 1, title: "添加连接", detail: "新建连接并填写服务器信息。")
             HelpStep(number: 2, title: "直接连接", detail: "首次主机密钥由系统 OpenSSH 在后台记录；后续密钥变化时仍会阻止连接。")
             HelpStep(number: 3, title: "输入凭据", detail: "密码与私钥口令可保存在本机加密凭据库，普通配置和导出文件不包含凭据。")
             HelpStep(number: 4, title: "进入工作区", detail: "连接后可同时使用真实终端、服务器监控、远程文件、命令脚本和端口转发。")
@@ -690,9 +631,6 @@ private struct ConnectionCenterHeader: View {
     @Binding var sortOrder: ConnectionSortOrder
     let hasActiveSession: Bool
     let returnToSession: () -> Void
-    let importFinalShell: () -> Void
-    let importKiteShell: () -> Void
-    let importOpenSSH: () -> Void
     let exportKiteShell: () -> Void
     let quickConnect: () -> Void
     let newConnection: () -> Void
@@ -744,31 +682,15 @@ private struct ConnectionCenterHeader: View {
 
             Menu {
                 Button {
-                    importFinalShell()
-                } label: {
-                    Label("导入 FinalShell…", systemImage: "square.and.arrow.down")
-                }
-                Button {
-                    importKiteShell()
-                } label: {
-                    Label("导入 SHX…", systemImage: "square.and.arrow.down.on.square")
-                }
-                Button {
-                    importOpenSSH()
-                } label: {
-                    Label("导入 OpenSSH Config…", systemImage: "terminal")
-                }
-                Divider()
-                Button {
                     exportKiteShell()
                 } label: {
                     Label("导出 SHX 配置…", systemImage: "square.and.arrow.up")
                 }
             } label: {
-                Label("导入与导出", systemImage: "arrow.up.arrow.down.square")
+                Label("导出", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.bordered)
-            .help("导入或导出连接配置，不导出密码")
+            .help("导出连接配置，不导出密码")
             .pointingHandCursor()
 
             Menu {
