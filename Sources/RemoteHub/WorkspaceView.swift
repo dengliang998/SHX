@@ -23,8 +23,8 @@ struct WorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             SessionTabBar()
-                .frame(maxWidth: .infinity, height: WorkspacePanelLayout.sessionTabBarHeight,
-                       alignment: .center)
+                .frame(maxWidth: .infinity)
+                .frame(height: WorkspacePanelLayout.sessionTabBarHeight, alignment: .center)
                 .clipped()
             Divider()
 
