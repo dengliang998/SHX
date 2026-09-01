@@ -98,6 +98,7 @@ struct WorkspaceView: View {
             }
         }
         .navigationTitle(model.selectedSession?.title ?? "KiteShell")
+        .macOS26GlassToolbar()
         .sheet(isPresented: $isPresentingPortForwards) {
             if let session = model.selectedSession {
                 PortForwardPanel(session: session)
@@ -151,6 +152,7 @@ private struct SessionTabBar: View {
             .padding(.vertical, 6)
         }
         .background(.bar)
+        .macOS26Glass(in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -187,6 +189,7 @@ private struct SessionTab: View {
                 : AnyShapeStyle(isHovering ? Color.primary.opacity(0.07) : .clear),
             in: RoundedRectangle(cornerRadius: 7)
         )
+        .macOS26Glass(in: RoundedRectangle(cornerRadius: 7))
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
         .onHover { isHovering = $0 }

@@ -123,6 +123,7 @@ private struct TerminalView: View {
             .padding(.horizontal, 12)
             .frame(height: 34)
             .background(.bar)
+            .macOS26Glass(in: RoundedRectangle(cornerRadius: 10))
 
             Divider()
 
@@ -155,6 +156,7 @@ private struct TerminalView: View {
                 .padding(.horizontal, 10)
                 .frame(height: 36)
                 .background(.bar)
+                .macOS26Glass(in: RoundedRectangle(cornerRadius: 10))
                 Divider()
             }
 

@@ -204,6 +204,7 @@ struct ConnectionCenterView: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
 
                 Divider()
                 HStack(spacing: 7) {
@@ -220,6 +221,7 @@ struct ConnectionCenterView: View {
                 .accessibilityLabel("KiteShell \(AppVersion.display)")
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
+            .macOS26Glass(in: RoundedRectangle(cornerRadius: 18))
         } detail: {
             VStack(spacing: 0) {
                 ConnectionCenterHeader(
@@ -365,6 +367,7 @@ struct ConnectionCenterView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationTitle("KiteShell")
+        .macOS26GlassToolbar()
         .onAppear {
             DispatchQueue.main.async { dismissSearchFocus() }
         }
@@ -1063,6 +1066,7 @@ private struct ServerRow: View {
             Color(nsColor: .controlBackgroundColor),
             in: RoundedRectangle(cornerRadius: 13)
         )
+        .macOS26Glass(in: RoundedRectangle(cornerRadius: 13))
         .overlay {
             RoundedRectangle(cornerRadius: 13)
                 .stroke(

@@ -60,3 +60,25 @@ extension Color {
         )
     }
 }
+
+extension View {
+    /// Uses the macOS 26 Liquid Glass surface when available and keeps the
+    /// existing material treatment on supported older deployment targets.
+    @ViewBuilder
+    func macOS26Glass<S: Shape>(in shape: S) -> some View {
+        if #available(macOS 26.0, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+        }
+    }
+
+    @ViewBuilder
+    func macOS26GlassToolbar() -> some View {
+        if #available(macOS 26.0, *) {
+            toolbarBackground(.visible, for: .windowToolbar)
+        } else {
+            self
+        }
+    }
+}
