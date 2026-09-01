@@ -1,5 +1,19 @@
 import SwiftUI
 
+enum WorkspacePanelLayout {
+    static let sessionTabBarHeight: CGFloat = 40
+    static let inspectorExpandedWidth: CGFloat = 292
+    static let filePanelExpandedHeight: CGFloat = 280
+
+    static func inspectorWidth(isVisible: Bool) -> CGFloat {
+        isVisible ? inspectorExpandedWidth : 0
+    }
+
+    static func filePanelHeight(isVisible: Bool) -> CGFloat {
+        isVisible ? filePanelExpandedHeight : 0
+    }
+}
+
 struct WorkspaceView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -9,27 +23,35 @@ struct WorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             SessionTabBar()
+                .frame(maxWidth: .infinity, height: WorkspacePanelLayout.sessionTabBarHeight,
+                       alignment: .center)
+                .clipped()
             Divider()
 
             if let session = model.selectedSession {
-                HSplitView {
+                HStack(spacing: 0) {
                     TerminalAndFilesView(session: session)
-                        .frame(minWidth: 620)
+                        .frame(minWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
 
-                    if model.isInspectorVisible && !model.focusMode {
+                    let inspectorVisible = model.isInspectorVisible && !model.focusMode
+                    Rectangle()
+                        .fill(.separator)
+                        .frame(width: 1)
+                        .opacity(inspectorVisible ? 1 : 0)
+                    Group {
                         ServerInspectorView(session: session)
-                            .frame(minWidth: 260, idealWidth: 292, maxWidth: 360)
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .trailing).combined(with: .opacity)
-                            ))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .frame(width: WorkspacePanelLayout.inspectorWidth(isVisible: inspectorVisible))
+                    .opacity(inspectorVisible ? 1 : 0)
+                    .clipped()
                 }
+                .animation(reduceMotion ? nil : .smooth(duration: 0.32, extraBounce: 0.04),
+                           value: model.isInspectorVisible && !model.focusMode)
             } else {
                 ContentUnavailableView("没有活动会话", systemImage: "terminal")
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: model.isInspectorVisible)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button {
@@ -156,7 +178,7 @@ private struct SessionTabBar: View {
         }
         .background(.bar)
         .macOS26Glass(in: RoundedRectangle(cornerRadius: 12))
-        .frame(height: 40)
+        .frame(maxWidth: .infinity)
     }
 }
 

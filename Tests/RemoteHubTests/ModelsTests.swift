@@ -14,6 +14,15 @@ struct ModelsTests {
         #expect(TerminalServiceStartupPolicy.startupDelayMilliseconds >= 800)
     }
 
+    @Test
+    func workspacePanelLayoutUsesStableCollapsedDimensions() {
+        #expect(WorkspacePanelLayout.sessionTabBarHeight == 40)
+        #expect(WorkspacePanelLayout.inspectorWidth(isVisible: false) == 0)
+        #expect(WorkspacePanelLayout.inspectorWidth(isVisible: true) == 292)
+        #expect(WorkspacePanelLayout.filePanelHeight(isVisible: false) == 0)
+        #expect(WorkspacePanelLayout.filePanelHeight(isVisible: true) == 280)
+    }
+
     @MainActor
     @Test
     func terminalStartupIsDeferredUntilTheViewIsMounted() async {

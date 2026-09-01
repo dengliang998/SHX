@@ -12,17 +12,16 @@ struct TerminalAndFilesView: View {
             VStack(spacing: 0) {
                 TerminalView(session: session)
                     .frame(minHeight: 300, maxHeight: .infinity)
-                if model.isFilePanelVisible {
-                    Divider()
-                    RemoteFilePanel(session: session)
-                        .frame(minHeight: 190, idealHeight: 280)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        ))
-                }
+                Divider()
+                    .opacity(model.isFilePanelVisible ? 1 : 0)
+                RemoteFilePanel(session: session)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(height: WorkspacePanelLayout.filePanelHeight(isVisible: model.isFilePanelVisible))
+                    .opacity(model.isFilePanelVisible ? 1 : 0)
+                    .clipped()
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: model.isFilePanelVisible)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.32, extraBounce: 0.04),
+                       value: model.isFilePanelVisible)
         }
     }
 }
