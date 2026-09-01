@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -33,7 +33,11 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile KiteShell-${RELEASE_VERSION}.icns" Packaging/Info.plist
 
       - name: Build release disk image
-        run: ./Scripts/package-release.sh
+        run: |
+          swift --version
+          ./Scripts/package-release.sh
+          file .build/KiteShell.app/Contents/MacOS/KiteShell
+          lipo -info .build/KiteShell.app/Contents/MacOS/KiteShell | grep -q arm64
 
       - name: Publish GitHub release
         env:
@@ -41,7 +45,13 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
         run: |
           RELEASE_VERSION="${RELEASE_VERSION#v}"
-          gh release create "v${RELEASE_VERSION}" \
-            ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
-            --title "KiteShell ${RELEASE_VERSION}" \
-            --generate-notes
+          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            gh release upload "v${RELEASE_VERSION}" \
+              ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
+              --clobber
+          else
+            gh release create "v${RELEASE_VERSION}" \
+              ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
+              --title "KiteShell ${RELEASE_VERSION}" \
+              --generate-notes
+          fi

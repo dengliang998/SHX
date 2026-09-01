@@ -6,9 +6,9 @@ cd "$ROOT_DIR"
 
 CONFIGURATION="${CONFIGURATION:-release}"
 APP_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT_DIR/Packaging/Info.plist")
-swift build -c "$CONFIGURATION"
+swift build -c "$CONFIGURATION" --arch arm64
 
-BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
+BIN_DIR="$(swift build -c "$CONFIGURATION" --arch arm64 --show-bin-path)"
 APP_DIR="$ROOT_DIR/.build/KiteShell.app"
 
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
