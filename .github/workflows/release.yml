@@ -19,6 +19,8 @@ jobs:
   release:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref_type == 'tag' || contains(github.event.head_commit.message, '[release-1.0.0]'))
     runs-on: macos-26
+    env:
+      KITESHELL_RELEASE_BUILD: '1'
     steps:
       - name: Check out source
         uses: actions/checkout@v4
