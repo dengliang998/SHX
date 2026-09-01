@@ -35,6 +35,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${RELEASE_VERSION//./}" Packaging/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile KiteShell-${RELEASE_VERSION}.icns" Packaging/Info.plist
 
+      - name: Reset release dependency resolution
+        run: rm -f Package.resolved
+
       - name: Build release disk image
         run: |
           swift --version
