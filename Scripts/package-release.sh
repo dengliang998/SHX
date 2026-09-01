@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$ROOT_DIR/Scripts/build-app.sh" >/dev/null
+"$ROOT_DIR/Scripts/build-app.sh"
 mkdir -p "$OUTPUT_DIR"
 ditto "$APP_DIR" "$STAGING_DIR/KiteShell.app"
 ln -s /Applications "$STAGING_DIR/Applications"
