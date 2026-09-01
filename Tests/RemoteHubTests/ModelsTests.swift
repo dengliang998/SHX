@@ -6,6 +6,13 @@ import Testing
 @testable import RemoteHub
 
 struct ModelsTests {
+    @Test
+    func remoteServicesWaitForShellReadiness() {
+        #expect(!TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connected, shellReady: false))
+        #expect(TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connected, shellReady: true))
+        #expect(!TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connecting, shellReady: true))
+    }
+
     @MainActor
     @Test
     func terminalStartupIsDeferredUntilTheViewIsMounted() async {

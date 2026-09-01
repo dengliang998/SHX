@@ -1745,6 +1745,12 @@ final class AppModel: ObservableObject {
                 state: state
             )
         }
+        controller.onShellReady = { [weak self] in
+            self?.startRemoteServices(
+                sessionID: session.id,
+                controllerID: controllerID
+            )
+        }
         controller.onWorkingDirectoryChange = { [weak self] path in
             self?.syncRemoteDirectory(sessionID: session.id, path: path)
         }
@@ -1767,9 +1773,6 @@ final class AppModel: ObservableObject {
             automaticReconnectTasks[sessionID]?.cancel()
             automaticReconnectTasks[sessionID] = nil
             automaticReconnectAttempts[sessionID] = 0
-            startMonitor(for: sessionID)
-            loadRemoteDirectory(for: sessionID, path: nil)
-            runPendingCommandAfterShellIsReady(for: sessionID)
         } else {
             stopRemoteServices(for: sessionID, removeState: false)
             if state == .failed || state == .disconnected {
@@ -1786,6 +1789,17 @@ final class AppModel: ObservableObject {
         }
         servers[profileIndex].lastConnectedAt = Date()
         profileStore.save(servers)
+    }
+
+    private func startRemoteServices(sessionID: UUID, controllerID: UUID) {
+        guard terminalControllers[sessionID]?.id == controllerID,
+              TerminalServiceStartupPolicy.shouldStartServices(
+                  connectionState: sessions.first(where: { $0.id == sessionID })?.state ?? .failed,
+                  shellReady: true
+              ) else { return }
+        startMonitor(for: sessionID)
+        loadRemoteDirectory(for: sessionID, path: nil)
+        runPendingCommandAfterShellIsReady(for: sessionID)
     }
 
     private func scheduleAutomaticReconnect(for sessionID: UUID) {

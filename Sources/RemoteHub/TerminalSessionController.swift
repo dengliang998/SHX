@@ -144,6 +144,12 @@ final class TerminalProcessObserver: NSObject, LocalProcessTerminalViewDelegate 
     }
 }
 
+enum TerminalServiceStartupPolicy {
+    static func shouldStartServices(connectionState: ConnectionState, shellReady: Bool) -> Bool {
+        connectionState == .connected && shellReady
+    }
+}
+
 @MainActor
 final class TerminalSessionController {
     private static let localNetworkAccessConfirmedKey = "localNetworkAccessConfirmed"
@@ -152,6 +158,7 @@ final class TerminalSessionController {
     let jumpHost: ServerProfile?
     let terminalView: ObservedLocalProcessTerminalView
     var onStateChange: (@MainActor @Sendable (ConnectionState) -> Void)?
+    var onShellReady: (@MainActor @Sendable () -> Void)?
     var onWorkingDirectoryChange: (@MainActor @Sendable (String) -> Void)?
 
     private(set) var hasStarted = false
@@ -522,24 +529,21 @@ final class TerminalSessionController {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled, hasStarted else { return }
 
-            terminalView.send(txt: " stty -echo\r")
-            try? await Task.sleep(for: .milliseconds(180))
-            guard !Task.isCancelled, hasStarted else { return }
-
             let integration = #"__kiteshell_cwd(){ printf '\033]7;file://%s%s\033\\' "${HOSTNAME:-remote}" "$PWD"; }; if [ -n "$BASH_VERSION" ]; then case ";$PROMPT_COMMAND;" in *";__kiteshell_cwd;"*) ;; *) PROMPT_COMMAND="__kiteshell_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}";; esac; elif [ -n "$ZSH_VERSION" ]; then autoload -Uz add-zsh-hook >/dev/null 2>&1; add-zsh-hook precmd __kiteshell_cwd; fi; __kiteshell_cwd"#
-            terminalView.send(txt: integration + "\r")
-            try? await Task.sleep(for: .milliseconds(180))
-            guard !Task.isCancelled, hasStarted else { return }
-            terminalView.send(txt: "stty echo\r")
+            var initialization = ["stty -echo", integration]
             let startupDirectory = profile.startupDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
             if startupDirectory.hasPrefix("/") {
-                terminalView.send(txt: "cd -- \(RemoteFileService.shellQuote(startupDirectory))\r")
+                initialization.append("cd -- \(RemoteFileService.shellQuote(startupDirectory))")
             }
             let initializationCommand = profile.initializationCommand
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             if profile.runsInitializationCommand, !initializationCommand.isEmpty {
-                terminalView.send(txt: initializationCommand + "\r")
+                initialization.append(initializationCommand)
             }
+            initialization.append("stty echo")
+            terminalView.send(txt: initialization.joined(separator: "; ") + "\r")
+            guard !Task.isCancelled, hasStarted else { return }
+            onShellReady?()
         }
     }
 
