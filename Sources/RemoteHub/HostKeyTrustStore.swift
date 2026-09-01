@@ -76,7 +76,11 @@ enum HostKeyTrustStore {
             ofItemAtPath: directory.path
         )
         if !FileManager.default.fileExists(atPath: knownHostsURL.path) {
-            try Data().write(to: knownHostsURL, options: [.atomic, .withoutOverwriting])
+            // `.atomic` and `.withoutOverwriting` are incompatible on macOS 26:
+            // Foundation traps instead of throwing when both are supplied.
+            // Atomic creation is sufficient here because an empty known_hosts
+            // file is safe to recreate when multiple sessions start together.
+            try Data().write(to: knownHostsURL, options: .atomic)
         }
         try? FileManager.default.setAttributes(
             [.posixPermissions: 0o600],
