@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="900" y2="950" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172B4D"/>
+      <stop offset="0.55" stop-color="#101B35"/>
+      <stop offset="1" stop-color="#080F22"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="270" y1="230" x2="790" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DF9FF"/>
+      <stop offset="0.45" stop-color="#27C8FF"/>
+      <stop offset="1" stop-color="#5274FF"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="190" y1="120" x2="820" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#020611" flood-opacity="0.62"/>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="42" y="42" width="940" height="940" rx="220" fill="url(#bg)" filter="url(#shadow)"/>
+  <path d="M78 280C140 120 270 78 470 78h260c108 0 175 44 216 108-175-72-402-83-610-22-106 31-191 72-258 116Z" fill="url(#shine)"/>
+  <path d="M280 318h-54c-30 0-54 24-54 54v280c0 30 24 54 54 54h54" fill="none" stroke="url(#glow)" stroke-width="42" stroke-linecap="round"/>
+  <path d="M744 318h54c30 0 54 24 54 54v280c0 30-24 54-54 54h-54" fill="none" stroke="url(#glow)" stroke-width="42" stroke-linecap="round"/>
+  <path d="M328 418l154 94-154 94M482 512h174" fill="none" stroke="url(#glow)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)"/>
+  <circle cx="680" cy="512" r="30" fill="#8CFFFF"/>
+  <circle cx="680" cy="512" r="15" fill="#FFFFFF"/>
+  <path d="M242 760h540" stroke="#6DE8FF" stroke-opacity="0.22" stroke-width="12" stroke-linecap="round"/>
+</svg>

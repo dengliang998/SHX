@@ -12,7 +12,7 @@ struct KiteShellConfigurationArchive: Codable, Sendable {
 
     init(profiles: [ServerProfile], groups: [String] = [], globalCommands: [QuickCommand] = []) {
         schemaVersion = Self.currentSchemaVersion
-        product = "KiteShell"
+        product = "SHX"
         exportedAt = Date()
         self.profiles = profiles.map { profile in
             var copy = profile
@@ -40,7 +40,7 @@ enum ProfileExchangeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedArchive:
-            "这不是可识别的 KiteShell 配置文件。"
+            "这不是可识别的 SHX 配置文件。"
         case .unsupportedSchema(let version):
             "配置文件版本（\(version)）高于当前应用支持的版本。"
         case .noProfiles:
@@ -78,7 +78,7 @@ enum ProfileExchangeService {
                     let decoder = JSONDecoder()
                     decoder.dateDecodingStrategy = .iso8601
                     let archive = try decoder.decode(KiteShellConfigurationArchive.self, from: data)
-                    guard archive.product == "KiteShell" else {
+                    guard archive.product == "SHX" else {
                         skippedFiles += 1
                         continue
                     }

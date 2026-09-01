@@ -210,7 +210,7 @@ struct ConnectionDiagnosticsSheet: View {
     private func copyReport() {
         guard let report else { return }
         let text = ([
-            "KiteShell 连接诊断",
+            "SHX 连接诊断",
             profile.displayAddress,
             report.createdAt.formatted()
         ] + report.steps.flatMap { ["", "[\($0.title)]", $0.detail] })

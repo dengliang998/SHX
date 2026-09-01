@@ -31,7 +31,7 @@ struct PasswordPromptSheet: View {
 
             Toggle("保存到本地凭据库", isOn: $rememberPassword)
 
-            Text("凭据加密存放在当前 Mac 的 KiteShell 本地数据目录，不调用系统钥匙串，也不会写入连接配置或日志。")
+            Text("凭据加密存放在当前 Mac 的 SHX 本地数据目录，不调用系统钥匙串，也不会写入连接配置或日志。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

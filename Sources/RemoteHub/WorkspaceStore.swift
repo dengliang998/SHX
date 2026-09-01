@@ -15,7 +15,7 @@ struct WorkspaceStore {
             in: .userDomainMask
         ).first else { return nil }
         return baseURL
-            .appending(path: "KiteShell", directoryHint: .isDirectory)
+            .appending(path: "SHX", directoryHint: .isDirectory)
             .appending(path: "workspace.json", directoryHint: .notDirectory)
     }
 

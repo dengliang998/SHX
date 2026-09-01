@@ -3,13 +3,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "KiteShell",
+    name: "SHX",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "KiteShell", targets: ["RemoteHub"]),
-        .executable(name: "KiteShellUpdater", targets: ["KiteShellUpdater"])
+        .executable(name: "SHX", targets: ["RemoteHub"]),
+        .executable(name: "SHXUpdater", targets: ["KiteShellUpdater"])
     ],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.15.0")

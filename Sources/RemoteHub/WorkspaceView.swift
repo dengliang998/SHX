@@ -122,7 +122,7 @@ struct WorkspaceView: View {
                 .pointingHandCursor()
             }
         }
-        .navigationTitle(model.selectedSession?.title ?? "KiteShell")
+        .navigationTitle(model.selectedSession?.title ?? "SHX")
         .macOS26GlassToolbar()
         .sheet(isPresented: $isPresentingPortForwards) {
             if let session = model.selectedSession {

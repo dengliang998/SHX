@@ -15,7 +15,7 @@ enum HostKeyTrustStore {
             in: .userDomainMask
         ).first else { return nil }
         return base
-            .appending(path: "KiteShell", directoryHint: .isDirectory)
+            .appending(path: "SHX", directoryHint: .isDirectory)
             .appending(path: "known_hosts", directoryHint: .notDirectory)
     }
 

@@ -2,7 +2,7 @@ import Foundation
 
 enum AppVersion {
     static var short: String {
-        Bundle.main.object(forInfoDictionaryKey: "KiteShellReleaseLabel") as? String
+        Bundle.main.object(forInfoDictionaryKey: "SHXReleaseLabel") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             ?? "开发版"
     }
@@ -19,7 +19,7 @@ enum AppVersion {
     }
 
     static var signingType: String {
-        Bundle.main.object(forInfoDictionaryKey: "KiteShellSigningType") as? String
+        Bundle.main.object(forInfoDictionaryKey: "SHXSigningType") as? String
             ?? AppLanguage.text(chinese: "开发构建", english: "Development Build")
     }
 }

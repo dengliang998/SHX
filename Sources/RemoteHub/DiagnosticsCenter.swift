@@ -10,8 +10,8 @@ enum DiagnosticsCenter {
         }
         return base
             .appending(path: "Logs", directoryHint: .isDirectory)
-            .appending(path: "KiteShell", directoryHint: .isDirectory)
-            .appending(path: "KiteShell.log", directoryHint: .notDirectory)
+            .appending(path: "SHX", directoryHint: .isDirectory)
+            .appending(path: "SHX.log", directoryHint: .notDirectory)
     }
 
     static func record(_ category: String, _ message: String) {
@@ -49,7 +49,7 @@ enum DiagnosticsCenter {
         lock.unlock()
 
         let report = """
-        KiteShell 诊断报告
+        SHX 诊断报告
         生成时间：\(Date().formatted())
         应用版本：\(AppVersion.display)
         系统版本：\(ProcessInfo.processInfo.operatingSystemVersionString)

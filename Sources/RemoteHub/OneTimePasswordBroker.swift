@@ -9,7 +9,7 @@ final class OneTimePasswordBroker {
 
     init(password: String) {
         self.password = password
-        socketPath = "/tmp/kiteshell-askpass-\(UUID().uuidString.lowercased()).sock"
+        socketPath = "/tmp/shx-askpass-\(UUID().uuidString.lowercased()).sock"
     }
 
     func start() throws {

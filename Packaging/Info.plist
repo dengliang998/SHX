@@ -5,28 +5,28 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>KiteShell</string>
+    <string>SHX</string>
     <key>CFBundleIdentifier</key>
-    <string>com.kiteshell.app</string>
+    <string>com.shx.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>KiteShell</string>
+    <string>SHX</string>
     <key>CFBundleDisplayName</key>
-    <string>KiteShell</string>
+    <string>SHX</string>
     <key>CFBundleIconFile</key>
-	<string>KiteShell-1.1.4.icns</string>
+	<string>SHX-1.1.4.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
 	<string>1.1.4</string>
-    <key>KiteShellReleaseLabel</key>
+    <key>SHXReleaseLabel</key>
     <string>1.1.4</string>
     <key>CFBundleVersion</key>
     <string>114</string>
-    <key>KiteShellSigningType</key>
+    <key>SHXSigningType</key>
     <string>Local development signature (not notarized)</string>
-    <key>KiteShellUpdatePublicKey</key>
+    <key>SHXUpdatePublicKey</key>
     <string>+TseZoNWBIET0/tUxFZ6v9aAJFaf5rBpfYgAnO9iVzY=</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
@@ -35,7 +35,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>KiteShell needs local network access to connect to SSH servers on your LAN for terminals, file transfer, and system monitoring.</string>
+    <string>SHX needs local network access to connect to SSH servers on your LAN for terminals, file transfer, and system monitoring.</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
 </dict>

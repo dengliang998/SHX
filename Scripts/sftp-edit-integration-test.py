@@ -130,7 +130,7 @@ def main():
     port = listener.getsockname()[1]
 
     project_root = Path(__file__).resolve().parent.parent
-    askpass_helper = project_root / "Packaging" / "KiteShellAskPass"
+    askpass_helper = project_root / "Packaging" / "SHXAskPass"
     server_error = []
 
     with tempfile.TemporaryDirectory(prefix="ks-sftp-", dir="/tmp") as directory:
@@ -187,7 +187,7 @@ def main():
                 "SSH_ASKPASS": str(askpass_helper),
                 "SSH_ASKPASS_REQUIRE": "force",
                 "DISPLAY": "KiteShell",
-                "KITESHELL_ASKPASS_SOCKET": str(askpass_socket),
+                "SHX_ASKPASS_SOCKET": str(askpass_socket),
             }
         )
         destination = f"{TEST_USER}@127.0.0.1"

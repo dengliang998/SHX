@@ -173,7 +173,7 @@ struct CommandLibraryPanel: View {
             }
             Button("取消", role: .cancel) { deletionCandidate = nil }
         } message: { _ in
-            Text("只会删除 KiteShell 中保存的命令，不会删除服务器上的文件。")
+                    Text("只会删除 SHX 中保存的命令，不会删除服务器上的文件。")
         }
     }
 

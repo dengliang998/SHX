@@ -1,4 +1,4 @@
-/* KiteShell English localization. Chinese source strings remain the zh-Hans fallback. */
+/* SHX English localization. Chinese source strings remain the zh-Hans fallback. */
 
 " 副本" = "copy";
 ") · 保存后上传到当前服务器" = ") · Save and upload to the current server";
@@ -11,13 +11,13 @@
 "50,000 行" = "50,000 lines";
 "Agent 可用，但没有已加载的密钥" = "Agent available but no key loaded";
 "FinalShell 导入" = "FinalShell import";
-"KiteShell 上传完成" = "KiteShell upload completed";
-"KiteShell 上传部分失败" = "KiteShell upload partially failed";
-"KiteShell 下载失败" = "KiteShell download failed";
-"KiteShell 下载完成" = "KiteShell download completed";
-"KiteShell 已是最新版本" = "KiteShell is the latest version";
-"KiteShell 诊断日志已删除。" = "KiteShell diagnostic logs have been removed.";
-"KiteShell 连接诊断" = "KiteShell connection diagnostics";
+"SHX 上传完成" = "SHX upload completed";
+"SHX 上传部分失败" = "SHX upload partially failed";
+"SHX 下载失败" = "SHX download failed";
+"SHX 下载完成" = "SHX download completed";
+"SHX 已是最新版本" = "SHX is the latest version";
+"SHX 诊断日志已删除。" = "SHX diagnostic logs have been removed.";
+"SHX 连接诊断" = "SHX connection diagnostics";
 "Option 键作为 Meta" = "Option key as Meta";
 "SSH Agent 不可用" = "SSH Agent is not available";
 "SSH 密码" = "SSH Password";
@@ -99,7 +99,7 @@
 "内存" = "Memory";
 "内网" = "LAN";
 "准备" = "Prepare";
-"凭据加密存放在当前 Mac 的 KiteShell 本地数据目录，不调用系统钥匙串，也不会写入连接配置或日志。" = "Credentials are encrypted and stored in the KiteShell local data directory of the current Mac. The system keychain is not called, and connection configuration or logs are not written.";
+"凭据加密存放在当前 Mac 的 SHX 本地数据目录，不调用系统钥匙串，也不会写入连接配置或日志。" = "Credentials are encrypted and stored in the SHX local data directory of the current Mac. The system keychain is not called, and connection configuration or logs are not written.";
 "分组" = "Group";
 "分组中的连接将移动到“默认分组”，不会删除服务器配置。" = "Connections in the group will be moved to the \"Default Group\" and the server configuration will not be deleted.";
 "分组只能在连接中心左侧新增和管理。" = "Groups can only be added and managed on the left side of the connection center.";
@@ -189,8 +189,8 @@
 "密码未能保存" = "Password failed to save";
 "导入 FinalShell" = "Import FinalShell";
 "导入 FinalShell…" = "Import FinalShell…";
-"导入 KiteShell" = "Import KiteShell";
-"导入 KiteShell…" = "Import KiteShell…";
+"导入 SHX" = "Import SHX";
+"导入 SHX…" = "Import SHX…";
 "导入 OpenSSH Config…" = "Import OpenSSH Config…";
 "导入与导出" = "Import and export";
 "导入完成" = "Import completed";
@@ -199,9 +199,9 @@
 "导入本地脚本" = "Import local script";
 "导入的脚本" = "Imported script";
 "导入脚本" = "import script";
-"导出 KiteShell 诊断报告" = "Export KiteShell diagnostic report";
-"导出 KiteShell 连接" = "Export KiteShell connection";
-"导出 KiteShell 配置…" = "Export KiteShell configuration…";
+"导出 SHX 诊断报告" = "Export SHX diagnostic report";
+"导出 SHX 连接" = "Export SHX connection";
+"导出 SHX 配置…" = "Export SHX configuration…";
 "导出完成" = "Export completed";
 "导出脱敏诊断报告…" = "Export Redacted Diagnostic Report…";
 "将使用当前用户环境中的 SSH Agent 和已加载密钥；KiteShell 不会复制私钥内容。" = "The SSH Agent and loaded key from the current user's environment will be used; KiteShell will not copy the private key contents.";
@@ -228,7 +228,7 @@
 "应用语言" = "Application Language";
 "开发构建" = "development build";
 "开发版" = "Development version";
-"开始使用 KiteShell" = "Get started with KiteShell";
+"开始使用 SHX" = "Get started with SHX";
 "强调色" = "Accent Color";
 "当前 SSH 会话不可用。" = "The current SSH session is unavailable.";
 "当前字号" = "Current font size";
@@ -296,7 +296,7 @@
 "新建端口转发" = "Create new port forwarding";
 "新建转发" = "Create new forwarding";
 "新建连接" = "New connection";
-"新建连接，或导入 FinalShell、KiteShell 与 ~/.ssh/config。" = "Create a new connection, or import FinalShell, KiteShell, and ~/.ssh/config.";
+"新建连接，或导入 FinalShell、SHX 与 ~/.ssh/config。" = "Create a new connection, or import FinalShell, SHX, and ~/.ssh/config.";
 "新建连接，或尝试调整搜索条件。" = "Create a new connection, or try adjusting your search criteria.";
 "方块" = "Block";
 "无法停止端口转发" = "Unable to stop port forwarding";
@@ -329,7 +329,7 @@
 "暂无远程文件" = "No remote files yet";
 "暖纸白" = "warm paper white";
 "更多操作" = "More actions";
-"更新来自 GitHub Releases。替换当前应用前，KiteShell 会校验 Ed25519 清单签名和 DMG SHA-256。" = "Updates come from GitHub Releases. KiteShell verifies the Ed25519 manifest signature and DMG SHA-256 before replacing the current application.";
+"更新来自 GitHub Releases。替换当前应用前，SHX 会校验 Ed25519 清单签名和 DMG SHA-256。" = "Updates come from GitHub Releases. SHX verifies the Ed25519 manifest signature and DMG SHA-256 before replacing the current application.";
 "最终内容" = "final content";
 "最近连接" = "Recent";
 "服务器上的文件已被其他操作修改。为避免覆盖新版本，本次保存已取消。" = "The file on the server has been modified by other operations. To avoid overwriting the new version, this save has been cancelled.";
@@ -507,7 +507,7 @@
 "还没有保存的服务器" = "No servers saved yet";
 "还没有命令或脚本" = "There are no commands or scripts yet";
 "还没有端口转发" = "No port forwarding yet";
-"这不是可识别的 KiteShell 配置文件。" = "This is not a recognized KiteShell profile.";
+"这不是可识别的 SHX 配置文件。" = "This is not a recognized SHX profile.";
 "这里只记录命令名称、服务器名称和提交时间，不记录命令内容或输出。" = "Only the command name, server name and submission time are recorded here, but the command content or output is not recorded.";
 "进入工作区" = "Enter workspace";
 "远程命令执行失败" = "Remote command execution failed";

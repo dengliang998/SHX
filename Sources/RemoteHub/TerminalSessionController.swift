@@ -152,6 +152,45 @@ enum TerminalServiceStartupPolicy {
     }
 }
 
+enum TerminalShellBootstrap {
+    static func command(
+        token: String,
+        integration: String,
+        startupDirectory: String,
+        initializationCommand: String?
+    ) -> String {
+        var commonLines = [integration]
+        if startupDirectory.hasPrefix("/") {
+            commonLines.append("cd -- \(RemoteFileService.shellQuote(startupDirectory))")
+        }
+        if let initializationCommand,
+           !initializationCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            commonLines.append(initializationCommand)
+        }
+
+        let directory = "/tmp/shx-\(token)"
+        let bashRC = "\(directory)/.bashrc"
+        let zshRC = "\(directory)/.zshrc"
+        let bashLines = [
+            "if [ -f \"$HOME/.bashrc\" ]; then . \"$HOME/.bashrc\"; fi"
+        ] + commonLines
+        let zshLines = [
+            "if [ -f \"$HOME/.zshrc\" ]; then . \"$HOME/.zshrc\"; fi"
+        ] + commonLines
+        let encode = { (lines: [String]) in
+            lines.map(RemoteFileService.shellQuote).joined(separator: " ")
+        }
+
+        return "set -eu; mkdir -p \(RemoteFileService.shellQuote(directory)); " +
+            "printf '%s\\n' \(encode(bashLines)) > \(RemoteFileService.shellQuote(bashRC)); " +
+            "printf '%s\\n' \(encode(zshLines)) > \(RemoteFileService.shellQuote(zshRC)); " +
+            "case \"${SHELL:-/bin/sh}\" in */bash) exec bash --noprofile --rcfile \(RemoteFileService.shellQuote(bashRC)) -i ;; " +
+            "*/zsh) ZDOTDIR=\(RemoteFileService.shellQuote(directory)); export ZDOTDIR; exec zsh -i ;; " +
+            "*) . \(RemoteFileService.shellQuote(bashRC)); exec \"${SHELL:-/bin/sh}\" -i ;; " +
+            "esac"
+    }
+}
+
 @MainActor
 final class TerminalSessionController {
     private static let localNetworkAccessConfirmedKey = "localNetworkAccessConfirmed"
@@ -173,7 +212,7 @@ final class TerminalSessionController {
     private var localNetworkProbeTimeoutTask: Task<Void, Never>?
     private var didLaunchSSH = false
     private let processObserver = TerminalProcessObserver()
-    private var shellIntegrationTask: Task<Void, Never>?
+    private var shellReadyTask: Task<Void, Never>?
     private var identityFileURL: URL?
     private var isAccessingIdentityFile = false
 
@@ -245,7 +284,7 @@ final class TerminalSessionController {
 
     func terminate() {
         connectionWatchTask?.cancel()
-        shellIntegrationTask?.cancel()
+        shellReadyTask?.cancel()
         localNetworkProbeTimeoutTask?.cancel()
         localNetworkProbeTimeoutTask = nil
         if didLaunchSSH {
@@ -448,8 +487,21 @@ final class TerminalSessionController {
             }
         }
 
+        let integration = #"__kiteshell_cwd(){ printf '\033]7;file://%s%s\033\\' "${HOSTNAME:-remote}" "$PWD"; }; if [ -n "$BASH_VERSION" ]; then case ";$PROMPT_COMMAND;" in *";__kiteshell_cwd;"*) ;; *) PROMPT_COMMAND="__kiteshell_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}";; esac; elif [ -n "$ZSH_VERSION" ]; then autoload -Uz add-zsh-hook >/dev/null 2>&1; add-zsh-hook precmd __kiteshell_cwd; fi; __kiteshell_cwd"#
+        let startupDirectory = profile.startupDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let initializationCommand = profile.runsInitializationCommand
+            ? profile.initializationCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+            : nil
+        let shellCommand = TerminalShellBootstrap.command(
+            token: id.uuidString.lowercased(),
+            integration: integration,
+            startupDirectory: startupDirectory,
+            initializationCommand: initializationCommand
+        )
+
         arguments.append("--")
         arguments.append("\(profile.username)@\(profile.host)")
+        arguments.append(shellCommand)
         return arguments
     }
 
@@ -463,19 +515,19 @@ final class TerminalSessionController {
         environment["TERM"] = "xterm-256color"
         environment["SSH_ASKPASS"] = askPassURL.path
         environment["SSH_ASKPASS_REQUIRE"] = "force"
-        environment["DISPLAY"] = "KiteShell"
-        environment["KITESHELL_ASKPASS_SOCKET"] = passwordBroker.socketPath
+        environment["DISPLAY"] = "SHX"
+        environment["SHX_ASKPASS_SOCKET"] = passwordBroker.socketPath
         return environment.map { "\($0.key)=\($0.value)" }
     }
 
     private var askPassHelperURL: URL? {
-        let bundled = Bundle.main.resourceURL?.appending(path: "KiteShellAskPass")
+        let bundled = Bundle.main.resourceURL?.appending(path: "SHXAskPass")
         if let bundled, FileManager.default.isExecutableFile(atPath: bundled.path) {
             return bundled
         }
 
         let development = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appending(path: "Packaging/KiteShellAskPass")
+            .appending(path: "Packaging/SHXAskPass")
         return FileManager.default.isExecutableFile(atPath: development.path) ? development : nil
     }
 
@@ -492,7 +544,7 @@ final class TerminalSessionController {
                     passwordBroker?.cancel()
                     passwordBroker = nil
                     setState(.connected)
-                    installShellIntegration()
+                    scheduleShellReady()
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(100))
@@ -502,7 +554,7 @@ final class TerminalSessionController {
 
     private func handleTermination(exitCode: Int32?) {
         connectionWatchTask?.cancel()
-        shellIntegrationTask?.cancel()
+        shellReadyTask?.cancel()
         localNetworkProbeTimeoutTask?.cancel()
         localNetworkProbeTimeoutTask = nil
         localNetworkProbe?.cancel()
@@ -524,26 +576,11 @@ final class TerminalSessionController {
         try? FileManager.default.removeItem(atPath: controlSocketPath)
     }
 
-    private func installShellIntegration() {
-        shellIntegrationTask?.cancel()
-        shellIntegrationTask = Task { @MainActor [weak self] in
+    private func scheduleShellReady() {
+        shellReadyTask?.cancel()
+        shellReadyTask = Task { @MainActor [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled, hasStarted else { return }
-
-            let integration = #"__kiteshell_cwd(){ printf '\033]7;file://%s%s\033\\' "${HOSTNAME:-remote}" "$PWD"; }; if [ -n "$BASH_VERSION" ]; then case ";$PROMPT_COMMAND;" in *";__kiteshell_cwd;"*) ;; *) PROMPT_COMMAND="__kiteshell_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}";; esac; elif [ -n "$ZSH_VERSION" ]; then autoload -Uz add-zsh-hook >/dev/null 2>&1; add-zsh-hook precmd __kiteshell_cwd; fi; __kiteshell_cwd"#
-            var initialization = ["stty -echo", integration]
-            let startupDirectory = profile.startupDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-            if startupDirectory.hasPrefix("/") {
-                initialization.append("cd -- \(RemoteFileService.shellQuote(startupDirectory))")
-            }
-            let initializationCommand = profile.initializationCommand
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if profile.runsInitializationCommand, !initializationCommand.isEmpty {
-                initialization.append(initializationCommand)
-            }
-            initialization.append("stty echo")
-            terminalView.send(txt: initialization.joined(separator: "; ") + "\r")
             guard !Task.isCancelled, hasStarted else { return }
             onShellReady?()
         }

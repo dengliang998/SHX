@@ -15,6 +15,21 @@ struct ModelsTests {
     }
 
     @Test
+    func shellBootstrapDoesNotTypeEchoControlCommands() {
+        let command = TerminalShellBootstrap.command(
+            token: "test-token",
+            integration: "__kiteshell_cwd() { :; }",
+            startupDirectory: "",
+            initializationCommand: nil
+        )
+
+        #expect(!command.contains("stty -echo"))
+        #expect(!command.contains("stty echo"))
+        #expect(command.contains("--rcfile"))
+        #expect(command.contains("exec zsh -i"))
+    }
+
+    @Test
     func workspacePanelLayoutUsesStableCollapsedDimensions() {
         #expect(WorkspacePanelLayout.sessionTabBarHeight == 40)
         #expect(WorkspacePanelLayout.inspectorWidth(isVisible: false) == 0)

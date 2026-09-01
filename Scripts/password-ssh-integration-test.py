@@ -81,7 +81,7 @@ def main():
     server_thread.start()
 
     project_root = Path(__file__).resolve().parent.parent
-    askpass_helper = project_root / "Packaging" / "KiteShellAskPass"
+    askpass_helper = project_root / "Packaging" / "SHXAskPass"
 
     with tempfile.TemporaryDirectory(prefix="ks-ssh-", dir="/tmp") as directory:
         temporary = Path(directory)
@@ -111,7 +111,7 @@ def main():
                 "SSH_ASKPASS": str(askpass_helper),
                 "SSH_ASKPASS_REQUIRE": "force",
                 "DISPLAY": "KiteShell",
-                "KITESHELL_ASKPASS_SOCKET": str(askpass_socket),
+                "SHX_ASKPASS_SOCKET": str(askpass_socket),
             }
         )
 

@@ -37,7 +37,7 @@ struct LocalCredentialVault {
                 for: .applicationSupportDirectory,
                 in: .userDomainMask
             ).first!
-                .appending(path: "KiteShell", directoryHint: .isDirectory)
+                .appending(path: "SHX", directoryHint: .isDirectory)
                 .appending(path: "Credentials", directoryHint: .isDirectory)
         }
         directoryURL = directory

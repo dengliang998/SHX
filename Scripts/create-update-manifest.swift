@@ -44,7 +44,7 @@ let assetName = assetURL.lastPathComponent
 let digest = try sha256(of: assetURL)
 let minimumSystemVersion = "14.0"
 let payload = Data(
-    ["KiteShell", version, String(build), assetName, digest, minimumSystemVersion]
+    ["SHX", version, String(build), assetName, digest, minimumSystemVersion]
         .joined(separator: "\n")
         .utf8
 )
@@ -52,7 +52,7 @@ let privateKeyData = try Data(contentsOf: URL(fileURLWithPath: privateKeyPath))
 let privateKey = try Curve25519.Signing.PrivateKey(rawRepresentation: privateKeyData)
 let signature = try privateKey.signature(for: payload).base64EncodedString()
 let manifest = Manifest(
-    product: "KiteShell",
+    product: "SHX",
     version: version,
     build: build,
     assetName: assetName,

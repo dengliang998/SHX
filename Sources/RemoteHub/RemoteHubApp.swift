@@ -20,7 +20,7 @@ private final class KiteShellApplicationDelegate: NSObject, NSApplicationDelegat
 }
 
 @main
-struct KiteShellApp: App {
+struct SHXApp: App {
     @NSApplicationDelegateAdaptor(KiteShellApplicationDelegate.self) private var applicationDelegate
     @StateObject private var model = AppModel()
     @AppStorage("appearanceMode") private var appearanceMode = AppearanceMode.system.rawValue

@@ -210,7 +210,7 @@ struct ConnectionCenterView: View {
                 HStack(spacing: 7) {
                     Image(systemName: "terminal.fill")
                         .foregroundStyle(.tint)
-                    Text("KiteShell")
+                    Text("SHX")
                     Spacer()
                     Text("v\(AppVersion.short)")
                         .foregroundStyle(.secondary)
@@ -218,7 +218,7 @@ struct ConnectionCenterView: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .frame(height: 38)
-                .accessibilityLabel("KiteShell \(AppVersion.display)")
+                .accessibilityLabel("SHX \(AppVersion.display)")
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
             .macOS26Glass(in: RoundedRectangle(cornerRadius: 18))
@@ -263,7 +263,7 @@ struct ConnectionCenterView: View {
                                 isImportingFinalShell = true
                             }
                             .buttonStyle(.bordered)
-                            Button("导入 KiteShell") { isImportingKiteShell = true }
+                            Button("导入 SHX") { isImportingKiteShell = true }
                                 .buttonStyle(.bordered)
                             }
                             Button("打开使用说明") { isPresentingGettingStarted = true }
@@ -366,7 +366,7 @@ struct ConnectionCenterView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color(nsColor: .windowBackgroundColor))
         }
-        .navigationTitle("KiteShell")
+        .navigationTitle("SHX")
         .macOS26GlassToolbar()
         .onAppear {
             DispatchQueue.main.async { dismissSearchFocus() }
@@ -612,8 +612,8 @@ struct ConnectionCenterView: View {
 
     private func exportKiteShellConfiguration() {
         let panel = NSSavePanel()
-        panel.title = "导出 KiteShell 连接"
-        panel.nameFieldStringValue = "KiteShell-Connections.json"
+        panel.title = "导出 SHX 连接"
+        panel.nameFieldStringValue = "SHX-Connections.json"
         panel.allowedContentTypes = [.json]
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -639,7 +639,7 @@ private struct GettingStartedSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("开始使用 KiteShell").font(.title2.weight(.semibold))
+                    Text("开始使用 SHX").font(.title2.weight(.semibold))
                     Text("所有服务器数据都来自真实 SSH 会话，不会创建示例服务器或模拟负载。")
                         .foregroundStyle(.secondary)
                 }
@@ -648,7 +648,7 @@ private struct GettingStartedSheet: View {
                     .keyboardShortcut(.cancelAction)
             }
             Divider()
-            HelpStep(number: 1, title: "添加连接", detail: "新建连接，或导入 FinalShell、KiteShell 与 ~/.ssh/config。")
+                    HelpStep(number: 1, title: "添加连接", detail: "新建连接，或导入 FinalShell、SHX 与 ~/.ssh/config。")
             HelpStep(number: 2, title: "直接连接", detail: "首次主机密钥由系统 OpenSSH 在后台记录；后续密钥变化时仍会阻止连接。")
             HelpStep(number: 3, title: "输入凭据", detail: "密码与私钥口令可保存在本机加密凭据库，普通配置和导出文件不包含凭据。")
             HelpStep(number: 4, title: "进入工作区", detail: "连接后可同时使用真实终端、服务器监控、远程文件、命令脚本和端口转发。")
@@ -751,7 +751,7 @@ private struct ConnectionCenterHeader: View {
                 Button {
                     importKiteShell()
                 } label: {
-                    Label("导入 KiteShell…", systemImage: "square.and.arrow.down.on.square")
+                    Label("导入 SHX…", systemImage: "square.and.arrow.down.on.square")
                 }
                 Button {
                     importOpenSSH()
@@ -762,7 +762,7 @@ private struct ConnectionCenterHeader: View {
                 Button {
                     exportKiteShell()
                 } label: {
-                    Label("导出 KiteShell 配置…", systemImage: "square.and.arrow.up")
+                    Label("导出 SHX 配置…", systemImage: "square.and.arrow.up")
                 }
             } label: {
                 Label("导入与导出", systemImage: "arrow.up.arrow.down.square")

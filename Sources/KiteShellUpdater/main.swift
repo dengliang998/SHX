@@ -35,7 +35,7 @@ private enum Installer {
         try waitForExit(pid: arguments.pid)
         let fileManager = FileManager.default
         let backup = arguments.destination.deletingLastPathComponent()
-            .appending(path: ".KiteShell-update-backup-\(UUID().uuidString).app", directoryHint: .isDirectory)
+            .appending(path: ".SHX-update-backup-\(UUID().uuidString).app", directoryHint: .isDirectory)
         let hadExistingApp = fileManager.fileExists(atPath: arguments.destination.path)
         if hadExistingApp {
             try fileManager.moveItem(at: arguments.destination, to: backup)

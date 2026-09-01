@@ -176,7 +176,7 @@ private struct TerminalView: View {
                 ContentUnavailableView {
                     Label("会话等待恢复", systemImage: "terminal.fill")
                 } description: {
-                    Text("为保护凭据，KiteShell 不会在启动时自动登录服务器。")
+                    Text("为保护凭据，SHX 不会在启动时自动登录服务器。")
                 } actions: {
                     Button("重新连接") {
                         model.selectSession(session)

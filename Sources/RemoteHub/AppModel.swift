@@ -201,8 +201,8 @@ final class AppModel: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = AppLanguage.text(
-            chinese: "KiteShell 已是最新版本",
-            english: "KiteShell Is Up to Date"
+            chinese: "SHX 已是最新版本",
+            english: "SHX Is Up to Date"
         )
         alert.informativeText = AppLanguage.text(
             chinese: "当前版本为 \(AppVersion.short)（Build \(AppVersion.build)），暂时没有可用更新。",
@@ -217,8 +217,8 @@ final class AppModel: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = AppLanguage.text(
-            chinese: "发现 KiteShell \(update.version)",
-            english: "KiteShell \(update.version) Is Available"
+            chinese: "发现 SHX \(update.version)",
+            english: "SHX \(update.version) Is Available"
         )
         alert.informativeText = AppLanguage.text(
             chinese: "当前版本为 \(AppVersion.short)（Build \(AppVersion.build)）。是否下载并安装新版本？",
@@ -749,7 +749,7 @@ final class AppModel: ObservableObject {
             details.append("跳过 \(duplicateCount) 条重复连接。")
         }
         if payload.skippedFiles > 0 {
-            details.append("有 \(payload.skippedFiles) 个文件不是受支持的 KiteShell 配置。")
+            details.append("有 \(payload.skippedFiles) 个文件不是受支持的 SHX 配置。")
         }
         details.append("导入文件不包含密码；需要时会在首次连接时询问。")
 
@@ -935,7 +935,7 @@ final class AppModel: ObservableObject {
         remoteEditPreparationTasks.values.forEach { $0.cancel() }
         remoteEditPreparationTasks = [:]
         guard let cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
-        let directory = cacheRoot.appending(path: "KiteShell/RemoteEdits", directoryHint: .isDirectory)
+        let directory = cacheRoot.appending(path: "SHX/RemoteEdits", directoryHint: .isDirectory)
         do {
             if FileManager.default.fileExists(atPath: directory.path) {
                 try FileManager.default.removeItem(at: directory)
@@ -1337,7 +1337,7 @@ final class AppModel: ObservableObject {
                 )
             }
             UserNotificationService.post(
-                title: failureCount > 0 ? "KiteShell 上传部分失败" : "KiteShell 上传完成",
+                title: failureCount > 0 ? "SHX 上传部分失败" : "SHX 上传完成",
                 body: failureCount > 0
                     ? "完成 \(urls.count - failureCount) 个，失败 \(failureCount) 个。"
                     : "\(urls.count) 个项目已全部上传。"
@@ -1429,7 +1429,7 @@ final class AppModel: ObservableObject {
                       !Task.isCancelled else { return }
                 fileTransferActivity[sessionID] = nil
                 UserNotificationService.post(
-                    title: "KiteShell 下载完成",
+                    title: "SHX 下载完成",
                     body: "\(entry.name) 已下载。"
                 )
                 importNotice = ImportNotice(title: "下载完成", message: "文件已保存到所选位置。")
@@ -1439,7 +1439,7 @@ final class AppModel: ObservableObject {
                 fileTransferActivity[sessionID] = nil
                 importNotice = ImportNotice(title: "下载失败", message: error.localizedDescription)
                 UserNotificationService.post(
-                    title: "KiteShell 下载失败",
+                    title: "SHX 下载失败",
                     body: "\(entry.name) 未能下载。"
                 )
             }
@@ -1584,7 +1584,7 @@ final class AppModel: ObservableObject {
            current != expectedVersion {
             throw RemoteTextEditorError.changedRemotely
         }
-        let localURL = FileManager.default.temporaryDirectory.appending(path: "KiteShell-\(UUID().uuidString)-\(entry.name)")
+        let localURL = FileManager.default.temporaryDirectory.appending(path: "SHX-\(UUID().uuidString)-\(entry.name)")
         defer { try? FileManager.default.removeItem(at: localURL) }
         try Data(content.utf8).write(to: localURL, options: .atomic)
         try await SFTPTransferService.upload(localURL: localURL, remotePath: path, context: controller.remoteCommandContext)
@@ -2062,7 +2062,7 @@ final class AppModel: ObservableObject {
             throw RemoteCommandError.launchFailed("无法访问 macOS 缓存目录")
         }
         let directory = cacheRoot
-            .appending(path: "KiteShell", directoryHint: .isDirectory)
+            .appending(path: "SHX", directoryHint: .isDirectory)
             .appending(path: "RemoteEdits", directoryHint: .isDirectory)
             .appending(path: sessionID.uuidString, directoryHint: .isDirectory)
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -2099,7 +2099,7 @@ final class AppModel: ObservableObject {
                 remoteEditActivity[key.sessionID] = nil
                 importNotice = ImportNotice(
                     title: "远程文件已被修改",
-                    message: "为避免覆盖服务器上的新版本，KiteShell 已停止自动回传 \(fileName)。你的本地副本仍保留在缓存中；重新打开远程文件可下载服务器最新版本。"
+                    message: "为避免覆盖服务器上的新版本，SHX 已停止自动回传 \(fileName)。你的本地副本仍保留在缓存中；重新打开远程文件可下载服务器最新版本。"
                 )
                 return true
             }
@@ -2154,7 +2154,7 @@ final class AppModel: ObservableObject {
         guard reportedRemoteEditFailures.insert(key).inserted else { return }
         importNotice = ImportNotice(
             title: "本地修改暂未同步",
-            message: "\(detail)\n\n本地副本会继续保留，KiteShell 将每 3 秒自动重试，不会丢失刚才的编辑。"
+            message: "\(detail)\n\n本地副本会继续保留，SHX 将每 3 秒自动重试，不会丢失刚才的编辑。"
         )
     }
 

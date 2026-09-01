@@ -149,7 +149,7 @@ struct NewConnectionSheet: View {
                             ))
                                 .foregroundStyle(.secondary)
                         }
-                        Text("勾选后加密存放在 ~/Library/Application Support/KiteShell/Credentials，仅当前用户可读；不会写入连接配置、导出文件或日志。")
+                        Text("勾选后加密存放在 ~/Library/Application Support/SHX/Credentials，仅当前用户可读；不会写入连接配置、导出文件或日志。")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -197,7 +197,7 @@ struct NewConnectionSheet: View {
                                     .lineLimit(2)
                             }
                         }
-                        Text("将使用当前用户环境中的 SSH Agent 和已加载密钥；KiteShell 不会复制私钥内容。")
+                        Text("将使用当前用户环境中的 SSH Agent 和已加载密钥；SHX 不会复制私钥内容。")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

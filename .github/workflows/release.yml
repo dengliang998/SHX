@@ -1,4 +1,4 @@
-name: Release KiteShell
+name: Release SHX
 
 on:
   push:
@@ -29,20 +29,23 @@ jobs:
         run: |
           RELEASE_VERSION="${RELEASE_VERSION#v}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${RELEASE_VERSION}" Packaging/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :KiteShellReleaseLabel ${RELEASE_VERSION}" Packaging/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :SHXReleaseLabel ${RELEASE_VERSION}" Packaging/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${RELEASE_VERSION//./}" Packaging/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile KiteShell-${RELEASE_VERSION}.icns" Packaging/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile SHX-${RELEASE_VERSION}.icns" Packaging/Info.plist
+
+      - name: Build app icon
+        run: ./Scripts/build-icon.sh
 
       - name: Build release disk image
         run: |
-          cp Package.swift "$RUNNER_TEMP/KiteShell.Package.swift"
-          trap 'cp "$RUNNER_TEMP/KiteShell.Package.swift" Package.swift' EXIT
+          cp Package.swift "$RUNNER_TEMP/SHX.Package.swift"
+          trap 'cp "$RUNNER_TEMP/SHX.Package.swift" Package.swift' EXIT
           cp Package.release.swift Package.swift
           rm -f Package.resolved
           swift --version
           ./Scripts/package-release.sh
-          file .build/KiteShell.app/Contents/MacOS/KiteShell
-          lipo -info .build/KiteShell.app/Contents/MacOS/KiteShell | grep -q arm64
+          file .build/SHX.app/Contents/MacOS/SHX
+          lipo -info .build/SHX.app/Contents/MacOS/SHX | grep -q arm64
 
       - name: Publish GitHub release
         env:
@@ -52,11 +55,11 @@ jobs:
           RELEASE_VERSION="${RELEASE_VERSION#v}"
           if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
             gh release upload "v${RELEASE_VERSION}" \
-              ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
+              ".build/releases/SHX-${RELEASE_VERSION}.dmg" \
               --clobber
           else
             gh release create "v${RELEASE_VERSION}" \
-              ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
-              --title "KiteShell ${RELEASE_VERSION}" \
+              ".build/releases/SHX-${RELEASE_VERSION}.dmg" \
+              --title "SHX ${RELEASE_VERSION}" \
               --generate-notes
           fi

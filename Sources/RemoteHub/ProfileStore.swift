@@ -5,7 +5,7 @@ struct ProfileStore {
         guard let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return baseURL.appending(path: "KiteShell", directoryHint: .isDirectory)
+        return baseURL.appending(path: "SHX", directoryHint: .isDirectory)
             .appending(path: "servers.json", directoryHint: .notDirectory)
     }
 

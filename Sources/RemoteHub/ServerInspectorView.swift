@@ -273,7 +273,7 @@ private struct MonitorDetailView: View {
             }
             Button("取消", role: .cancel) { terminationCandidate = nil }
         } message: { process in
-            Text("进程 \(process.command) 可能正在处理请求或写入数据。KiteShell 只发送可被程序处理的 SIGTERM，不会直接使用 SIGKILL。")
+            Text("进程 \(process.command) 可能正在处理请求或写入数据。SHX 只发送可被程序处理的 SIGTERM，不会直接使用 SIGKILL。")
         }
     }
 

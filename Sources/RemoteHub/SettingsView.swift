@@ -135,7 +135,7 @@ struct SettingsView: View {
                             .buttonStyle(.borderedProminent)
                     }
                 }
-                Text("更新来自 GitHub Releases。替换当前应用前，KiteShell 会校验 Ed25519 清单签名和 DMG SHA-256。")
+                Text("更新来自 GitHub Releases。替换当前应用前，SHX 会校验 Ed25519 清单签名和 DMG SHA-256。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -145,20 +145,20 @@ struct SettingsView: View {
                 Button("在 Finder 中显示日志") { DiagnosticsCenter.revealLog() }
                 Button("清除诊断日志", role: .destructive) {
                     DiagnosticsCenter.clearLog()
-                    model.importNotice = ImportNotice(title: "已清除日志", message: "KiteShell 诊断日志已删除。")
+                    model.importNotice = ImportNotice(title: "已清除日志", message: "SHX 诊断日志已删除。")
                 }
             }
 
             Section("存储与卸载") {
                 Button("清理远程编辑缓存…", role: .destructive) { model.clearRemoteEditCache() }
-                Text("卸载应用不会自动删除连接配置和本地凭据。若需彻底清理，请先逐项删除连接，再删除 ~/Library/Application Support/KiteShell 与 ~/Library/Caches/KiteShell。")
+                Text("卸载应用不会自动删除连接配置和本地凭据。若需彻底清理，请先逐项删除连接，再删除 ~/Library/Application Support/SHX 与 ~/Library/Caches/SHX。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
 
             Section("关于") {
-                LabeledContent("KiteShell", value: AppVersion.display)
+                    LabeledContent("SHX", value: AppVersion.display)
                 LabeledContent(
                     "运行环境",
                     value: AppLanguage.text(
@@ -202,8 +202,8 @@ struct SettingsView: View {
 
     private func exportDiagnostics() {
         let panel = NSSavePanel()
-        panel.title = "导出 KiteShell 诊断报告"
-        panel.nameFieldStringValue = "KiteShell-Diagnostics.txt"
+                panel.title = "导出 SHX 诊断报告"
+                panel.nameFieldStringValue = "SHX-Diagnostics.txt"
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
