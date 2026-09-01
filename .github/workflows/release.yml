@@ -2,6 +2,8 @@ name: Release KiteShell
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -17,6 +19,7 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref_type == 'tag' || contains(github.event.head_commit.message, '[release-1.0.0]'))
     runs-on: macos-15
     steps:
       - name: Check out source
@@ -24,7 +27,7 @@ jobs:
 
       - name: Set release version
         env:
-          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          RELEASE_VERSION: ${{ inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0') }}
         run: |
           RELEASE_VERSION="${RELEASE_VERSION#v}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${RELEASE_VERSION}" Packaging/Info.plist
@@ -42,7 +45,7 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          RELEASE_VERSION: ${{ inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0') }}
         run: |
           RELEASE_VERSION="${RELEASE_VERSION#v}"
           if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
