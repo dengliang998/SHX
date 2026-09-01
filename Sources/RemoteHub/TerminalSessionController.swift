@@ -581,15 +581,23 @@ private extension Double {
     func nonZero(or fallback: Double) -> Double { self == 0 ? fallback : self }
 }
 
+enum TerminalStartupScheduler {
+    @MainActor
+    static func schedule(_ action: @escaping @MainActor @Sendable () -> Void) {
+        Task { @MainActor in action() }
+    }
+}
+
 struct NativeTerminalHost: NSViewRepresentable {
     let controller: TerminalSessionController
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        controller.start()
-        DispatchQueue.main.async {
+        let terminalView = controller.terminalView
+        TerminalStartupScheduler.schedule {
+            controller.start()
             controller.terminalView.window?.makeFirstResponder(controller.terminalView)
         }
-        return controller.terminalView
+        return terminalView
     }
 
     func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {}

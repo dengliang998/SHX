@@ -6,6 +6,20 @@ import Testing
 @testable import RemoteHub
 
 struct ModelsTests {
+    @MainActor
+    @Test
+    func terminalStartupIsDeferredUntilTheViewIsMounted() async {
+        let probe = TerminalStartupProbe()
+
+        TerminalStartupScheduler.schedule {
+            probe.didStart = true
+        }
+
+        #expect(!probe.didStart)
+        await Task.yield()
+        #expect(probe.didStart)
+    }
+
     @Test
     func terminalClipboardShortcutsUseStandardMacModifiers() {
         #expect(TerminalClipboardShortcut.resolve(characters: "c", modifiers: .command) == .copy)
@@ -930,4 +944,9 @@ struct ModelsTests {
         #expect(listing.entries.map(\.name) == ["Documents", "空 格.txt"])
         #expect(listing.entries.first(where: { $0.name == "空 格.txt" })?.sizeBytes == 7)
     }
+}
+
+@MainActor
+private final class TerminalStartupProbe {
+    var didStart = false
 }

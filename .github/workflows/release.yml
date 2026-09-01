@@ -1,0 +1,42 @@
+name: Release KiteShell
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version
+        required: true
+        default: 1.0.0
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${RELEASE_VERSION}" Packaging/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :KiteShellReleaseLabel ${RELEASE_VERSION}" Packaging/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${RELEASE_VERSION//./}" Packaging/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile KiteShell-${RELEASE_VERSION}.icns" Packaging/Info.plist
+
+      - name: Build release disk image
+        run: ./Scripts/package-release.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "v${RELEASE_VERSION}" \
+            ".build/releases/KiteShell-${RELEASE_VERSION}.dmg" \
+            --title "KiteShell ${RELEASE_VERSION}" \
+            --generate-notes
