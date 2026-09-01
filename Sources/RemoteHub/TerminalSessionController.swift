@@ -145,6 +145,8 @@ final class TerminalProcessObserver: NSObject, LocalProcessTerminalViewDelegate 
 }
 
 enum TerminalServiceStartupPolicy {
+    static let startupDelayMilliseconds = 1_000
+
     static func shouldStartServices(connectionState: ConnectionState, shellReady: Bool) -> Bool {
         connectionState == .connected && shellReady
     }

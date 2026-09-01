@@ -2,18 +2,27 @@ import SwiftUI
 
 struct TerminalAndFilesView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let session: Session
 
     var body: some View {
-        if model.isFilePanelVisible && !model.focusMode {
-            VSplitView {
-                TerminalView(session: session)
-                    .frame(minHeight: 300)
-                RemoteFilePanel(session: session)
-                    .frame(minHeight: 190, idealHeight: 280)
-            }
-        } else {
+        if model.focusMode {
             TerminalView(session: session)
+        } else {
+            VStack(spacing: 0) {
+                TerminalView(session: session)
+                    .frame(minHeight: 300, maxHeight: .infinity)
+                if model.isFilePanelVisible {
+                    Divider()
+                    RemoteFilePanel(session: session)
+                        .frame(minHeight: 190, idealHeight: 280)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        ))
+                }
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: model.isFilePanelVisible)
         }
     }
 }

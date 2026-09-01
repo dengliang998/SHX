@@ -11,6 +11,7 @@ struct ModelsTests {
         #expect(!TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connected, shellReady: false))
         #expect(TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connected, shellReady: true))
         #expect(!TerminalServiceStartupPolicy.shouldStartServices(connectionState: .connecting, shellReady: true))
+        #expect(TerminalServiceStartupPolicy.startupDelayMilliseconds >= 800)
     }
 
     @MainActor

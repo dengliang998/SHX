@@ -94,6 +94,7 @@ final class AppModel: ObservableObject {
     private var pendingCommandTasks: [UUID: Task<Void, Never>] = [:]
     private var directorySyncTasks: [UUID: Task<Void, Never>] = [:]
     private var automaticReconnectTasks: [UUID: Task<Void, Never>] = [:]
+    private var remoteServicesStartupTasks: [UUID: Task<Void, Never>] = [:]
     private var automaticReconnectAttempts: [UUID: Int] = [:]
     private var remoteEditHandles: [RemoteEditKey: RemoteEditHandle] = [:]
     private var remoteEditPreparationTasks: [RemoteEditKey: Task<Void, Never>] = [:]
@@ -1797,9 +1798,22 @@ final class AppModel: ObservableObject {
                   connectionState: sessions.first(where: { $0.id == sessionID })?.state ?? .failed,
                   shellReady: true
               ) else { return }
-        startMonitor(for: sessionID)
-        loadRemoteDirectory(for: sessionID, path: nil)
-        runPendingCommandAfterShellIsReady(for: sessionID)
+        remoteServicesStartupTasks[sessionID]?.cancel()
+        remoteServicesStartupTasks[sessionID] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .milliseconds(TerminalServiceStartupPolicy.startupDelayMilliseconds))
+            guard !Task.isCancelled,
+                  terminalControllers[sessionID]?.id == controllerID,
+                  sessions.first(where: { $0.id == sessionID })?.state == .connected else { return }
+            startMonitor(for: sessionID)
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled,
+                  terminalControllers[sessionID]?.id == controllerID,
+                  sessions.first(where: { $0.id == sessionID })?.state == .connected else { return }
+            loadRemoteDirectory(for: sessionID, path: nil)
+            runPendingCommandAfterShellIsReady(for: sessionID)
+            remoteServicesStartupTasks[sessionID] = nil
+        }
     }
 
     private func scheduleAutomaticReconnect(for sessionID: UUID) {
@@ -1955,6 +1969,8 @@ final class AppModel: ObservableObject {
     }
 
     private func stopRemoteServices(for sessionID: UUID, removeState: Bool) {
+        remoteServicesStartupTasks[sessionID]?.cancel()
+        remoteServicesStartupTasks[sessionID] = nil
         monitorTasks[sessionID]?.cancel()
         monitorTasks[sessionID] = nil
         remoteDirectoryTasks[sessionID]?.cancel()

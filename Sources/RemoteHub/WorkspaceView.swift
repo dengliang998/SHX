@@ -19,14 +19,17 @@ struct WorkspaceView: View {
                     if model.isInspectorVisible && !model.focusMode {
                         ServerInspectorView(session: session)
                             .frame(minWidth: 260, idealWidth: 292, maxWidth: 360)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .trailing).combined(with: .opacity)
+                            ))
                     }
                 }
             } else {
                 ContentUnavailableView("没有活动会话", systemImage: "terminal")
             }
         }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: model.isInspectorVisible)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: model.isInspectorVisible)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button {
@@ -153,6 +156,7 @@ private struct SessionTabBar: View {
         }
         .background(.bar)
         .macOS26Glass(in: RoundedRectangle(cornerRadius: 12))
+        .frame(height: 40)
     }
 }
 
