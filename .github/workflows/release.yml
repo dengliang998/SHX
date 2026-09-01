@@ -19,8 +19,6 @@ jobs:
   release:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref_type == 'tag' || contains(github.event.head_commit.message, '[release-1.0.0]'))
     runs-on: macos-26
-    env:
-      KITESHELL_RELEASE_BUILD: '1'
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -35,11 +33,12 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${RELEASE_VERSION//./}" Packaging/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile KiteShell-${RELEASE_VERSION}.icns" Packaging/Info.plist
 
-      - name: Reset release dependency resolution
-        run: rm -f Package.resolved
-
       - name: Build release disk image
         run: |
+          cp Package.swift "$RUNNER_TEMP/KiteShell.Package.swift"
+          trap 'cp "$RUNNER_TEMP/KiteShell.Package.swift" Package.swift' EXIT
+          cp Package.release.swift Package.swift
+          rm -f Package.resolved
           swift --version
           ./Scripts/package-release.sh
           file .build/KiteShell.app/Contents/MacOS/KiteShell

@@ -12,8 +12,7 @@ let package = Package(
         .executable(name: "KiteShellUpdater", targets: ["KiteShellUpdater"])
     ],
     dependencies: [
-        .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.15.0"),
-        .package(url: "https://github.com/swiftlang/swift-testing.git", exact: "6.2.3")
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.15.0")
     ],
     targets: [
         .executableTarget(
@@ -26,15 +25,6 @@ let package = Package(
         .executableTarget(
             name: "KiteShellUpdater",
             path: "Sources/KiteShellUpdater"
-        ),
-        .testTarget(
-            name: "RemoteHubTests",
-            dependencies: [
-                "RemoteHub",
-                .product(name: "SwiftTerm", package: "SwiftTerm"),
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            path: "Tests/RemoteHubTests"
         )
     ]
 )
